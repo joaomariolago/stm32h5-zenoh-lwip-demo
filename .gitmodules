@@ -1,0 +1,9 @@
+[submodule "firmware/Lib/stm32-mw-lwip"]
+	path = firmware/Lib/stm32-mw-lwip
+	url = git@github.com:STMicroelectronics/stm32-mw-lwip.git
+[submodule "firmware/Lib/stm32-lan8742"]
+	path = firmware/Lib/stm32-lan8742
+	url = git@github.com:STMicroelectronics/stm32-lan8742.git
+[submodule "firmware/Lib/zenoh-pico"]
+	path = firmware/Lib/zenoh-pico
+	url = git@github.com:eclipse-zenoh/zenoh-pico.git
