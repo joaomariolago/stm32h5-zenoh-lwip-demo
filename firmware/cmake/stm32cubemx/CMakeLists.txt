@@ -18,17 +18,25 @@ target_include_directories(stm32cubemx INTERFACE
     ../../Drivers/STM32H5xx_HAL_Driver/Inc/Legacy
     ../../Drivers/CMSIS/Device/ST/STM32H5xx/Include
     ../../Drivers/CMSIS/Include
+    ../../Middlewares/Third_Party/FreeRTOS/Source/include/
+    ../../Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM33_NTZ/non_secure/
+    ../../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/
+    ../../Middlewares/Third_Party/CMSIS/RTOS2/Include/
 )
 
 target_sources(stm32cubemx INTERFACE
     ../../Core/Src/main.c
     ../../Core/Src/gpio.c
+    ../../Core/Src/app_freertos.c
     ../../Core/Src/eth.c
     ../../Core/Src/icache.c
     ../../Core/Src/memorymap.c
     ../../Core/Src/usart.c
     ../../Core/Src/stm32h5xx_it.c
     ../../Core/Src/stm32h5xx_hal_msp.c
+    ../../Core/Src/stm32h5xx_hal_timebase_tim.c
+    ../../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_tim.c
+    ../../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_tim_ex.c
     ../../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_cortex.c
     ../../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_rcc.c
     ../../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_rcc_ex.c
@@ -47,6 +55,17 @@ target_sources(stm32cubemx INTERFACE
     ../../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_uart.c
     ../../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_uart_ex.c
     ../../Core/Src/system_stm32h5xx.c
+    ../../Middlewares/Third_Party/FreeRTOS/Source/croutine.c
+    ../../Middlewares/Third_Party/FreeRTOS/Source/event_groups.c
+    ../../Middlewares/Third_Party/FreeRTOS/Source/list.c
+    ../../Middlewares/Third_Party/FreeRTOS/Source/queue.c
+    ../../Middlewares/Third_Party/FreeRTOS/Source/stream_buffer.c
+    ../../Middlewares/Third_Party/FreeRTOS/Source/tasks.c
+    ../../Middlewares/Third_Party/FreeRTOS/Source/timers.c
+    ../../Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM33_NTZ/non_secure/port.c
+    ../../Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM33_NTZ/non_secure/portasm.c
+    ../../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.c
+    ../../Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.c
     ../../Core/Src/sysmem.c
     ../../Core/Src/syscalls.c
     ../../startup_stm32h563xx.s
