@@ -54,6 +54,51 @@ add_library(freertos_kernel ALIAS stm32cubemx)
 # Get include directories provided by STM32CubeMX
 get_target_property(CUBE_MX_PROVIDED_INCLUDE_DIRS stm32cubemx INTERFACE_INCLUDE_DIRECTORIES)
 
+# Third Party libraries
+
+# - Lightweight IP (lwIP)
+
+set(LWIP_SPECIFIC_INCLUDE_DIRS
+    "${CMAKE_CURRENT_SOURCE_DIR}/Lib/stm32-mw-lwip/src/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Lib/stm32-mw-lwip/system"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/LWIP/Target"
+)
+
+set(LWIP_INCLUDE_DIRS
+    ${LWIP_SPECIFIC_INCLUDE_DIRS}
+    ${CUBE_MX_PROVIDED_INCLUDE_DIRS}
+)
+
+add_library(lwip-system INTERFACE)
+
+target_include_directories(lwip-system INTERFACE
+  ${LWIP_SPECIFIC_INCLUDE_DIRS}
+  ${CUBE_MX_PROVIDED_INCLUDE_DIRS}
+)
+
+target_sources(lwip-system  INTERFACE
+    "${CMAKE_CURRENT_SOURCE_DIR}/Lib/stm32-mw-lwip/system/OS/sys_arch.c"
+)
+
+add_subdirectory(Lib/stm32-mw-lwip)
+
+# - BSP LAN8742A
+
+add_library(lan8742 INTERFACE)
+
+set(LAN8742_SPECIFIC_INCLUDE_DIRS
+    "${CMAKE_CURRENT_SOURCE_DIR}/Lib/stm32-lan8742"
+)
+
+target_include_directories(lan8742 INTERFACE
+    ${LAN8742_SPECIFIC_INCLUDE_DIRS}
+    ${CUBE_MX_PROVIDED_INCLUDE_DIRS}
+)
+
+target_sources(lan8742 INTERFACE
+    "${CMAKE_CURRENT_SOURCE_DIR}/Lib/stm32-lan8742/lan8742.c"
+)
+
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined library search paths

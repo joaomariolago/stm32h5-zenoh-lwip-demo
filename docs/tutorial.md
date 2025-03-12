@@ -420,4 +420,227 @@ The function for each file is:
 
 So first of all make sure to create all required folders and files, and then follow next steps to configure them.
 
+Most part of the files will be based on the provided from [st classic-coremw-apps](https://github.com/STMicroelectronics/stm32h5-classic-coremw-apps) repository, for the H5 series. For our example we gonna use the [LwIP_HTTP_Server_Socket_RTOS](https://github.com/STMicroelectronics/stm32h5-classic-coremw-apps/tree/main/Projects/NUCLEO-H563ZI/Applications/LwIP/LwIP_HTTP_Server_Socket_RTOS) as a base. Some concepts were also used from the tutorial post on ST comunity [How to use the LwIP Ethernet middleware on the STM32H5 series](https://community.st.com/t5/stm32-mcus/how-to-use-the-lwip-ethernet-middleware-on-the-stm32h5-series/ta-p/691100). Thanks to the authors for the great content.
+
+If you just want the final file you can directly copy the [ethernetif.c](https://github.com/joaomariolago/stm32h5-zenoh-lwip-demo/tree/master/firmware/Core/Src/LWIP/Target/ethernetif.c) from my repository and skip to the next step configuring the `ethernetif.h` file.
+
+Otherwise if you want to configure step by step from original source copy the contents from ST [ethernetif.c](https://github.com/STMicroelectronics/stm32h5-classic-coremw-apps/blob/main/Projects/NUCLEO-H563ZI/Applications/LwIP/LwIP_HTTP_Server_Socket_RTOS/LWIP/Target/ethernetif.c) to our `firmware/Core/Src/LWIP/Target/ethernetif.c` file.
+
+First lets modify the includes to take in account our project structure, so change the following includes:
+
+```diff
+/* Includes ------------------------------------------------------------------*/
+-#include "stm32h5xx_hal.h"
+-#include "FreeRTOS.h"
+-#include "semphr.h"
+-#include "lwip/timeouts.h"
+-#include "netif/ethernet.h"
+-#include "netif/etharp.h"
+-#include "lwip/stats.h"
+-#include "lwip/snmp.h"
+-#include "lwip/tcpip.h"
+-#include "ethernetif.h"
+-#include "../Components/lan8742/lan8742.h"
+-#include <string.h>
+-#include "lwip/netifapi.h"
+```
+```diff
+/* Includes ------------------------------------------------------------------*/
++ #include <string.h>
++ #include "stm32h5xx_hal.h"
++ #include "FreeRTOS.h"
++ #include "semphr.h"
++ #include "eth.h"
++ #include "lan8742.h"
++ #include "lwip/timeouts.h"
++ #include "lwip/tcpip.h"
++ #include "lwip/netifapi.h"
++ #include "lwip/stats.h"
++ #include "lwip/snmp.h"
++ #include "netif/ethernet.h"
++ #include "netif/etharp.h"
++ #include "LWIP/Target/ethernetif.h"
+```
+
+Second we need to change some variables to extern since they will be generated in our `eth.c` file. Change the following variables:
+
+```diff
+- ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
+- ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
++ extern ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
++ extern ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
+```
+
+```
+/* Global Ethernet handle */
+ETH_HandleTypeDef EthHandle;
+- ETH_TxPacketConfig TxConfig;
++ extern ETH_TxPacketConfigTypeDef TxConfig;
+```
+
+After this we can remove the following line and use find and replace to change all exact matches of `EthHandle` for `heth`:
+
+```diff
+/* Global Ethernet handle */
+- ETH_HandleTypeDef EthHandle;
+```
+
+Make sure to use exact match, identation and match whole word to avoid changing other variables that may have the same name.
+
+After this we need to change the `low_level_init` function to make use of our generated code from CubeMX. Change the following lines:
+
+```diff
+static void low_level_init(struct netif *netif)
+{
+  uint32_t duplex, speed = 0U;
+  int32_t PHYLinkState = 0U;
+  ETH_MACConfigTypeDef MACConf = {0};
+- uint8_t macaddress[6]= {ETH_MAC_ADDR0, ETH_MAC_ADDR1, ETH_MAC_ADDR2, ETH_MAC_ADDR3, ETH_MAC_ADDR4, ETH_MAC_ADDR5};
+
+- heth.Instance = ETH;
+- heth.Init.MACAddr = macaddress;
+- heth.Init.MediaInterface = HAL_ETH_RMII_MODE;
+- heth.Init.RxDesc = DMARxDscrTab;
+- heth.Init.TxDesc = DMATxDscrTab;
+- heth.Init.RxBuffLen = ETH_RX_BUFFER_SIZE;
+
+- /* configure ethernet peripheral (GPIOs, clocks, MAC, DMA) */
+- HAL_ETH_Init(&heth);
+
++ MX_ETH_Init();
+
+  /* set MAC hardware address length */
+  netif->hwaddr_len = ETH_HWADDR_LEN;
+
+  /* set MAC hardware address */
+- netif->hwaddr[0] =  ETH_MAC_ADDR0;
+- netif->hwaddr[1] =  ETH_MAC_ADDR1;
+- netif->hwaddr[2] =  ETH_MAC_ADDR2;
+- netif->hwaddr[3] =  ETH_MAC_ADDR3;
+- netif->hwaddr[4] =  ETH_MAC_ADDR4;
+- netif->hwaddr[5] =  ETH_MAC_ADDR5;
++ netif->hwaddr[0] =  heth.Init.MACAddr[0];
++ netif->hwaddr[1] =  heth.Init.MACAddr[1];
++ netif->hwaddr[2] =  heth.Init.MACAddr[2];
++ netif->hwaddr[3] =  heth.Init.MACAddr[3];
++ netif->hwaddr[4] =  heth.Init.MACAddr[4];
++ netif->hwaddr[5] =  heth.Init.MACAddr[5];
+
+  /* maximum transfer unit */
+  netif->mtu = ETH_MAX_PAYLOAD;
+
+  /* device capabilities */
+  /* don't set NETIF_FLAG_ETHARP if this device is not an ethernet one */
+  netif->flags |= NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP;
+
+  /* Initialize the RX POOL */
+  LWIP_MEMPOOL_INIT(RX_POOL);
+
+- /* Set Tx packet config common parameters */
+- memset(&TxConfig, 0 , sizeof(ETH_TxPacketConfig));
+- TxConfig.Attributes = ETH_TX_PACKETS_FEATURES_CSUM | ETH_TX_PACKETS_FEATURES_CRCPAD;
+- TxConfig.ChecksumCtrl = ETH_CHECKSUM_IPHDR_PAYLOAD_INSERT_PHDR_CALC;
+- TxConfig.CRCPadCtrl = ETH_CRC_PAD_INSERT;
+
+  /* create a binary semaphore used for informing ethernetif of frame reception */
+```
+
+Finally we need to remove the Ethernet MSP since they are generated by CubeMX, so remove the following content:
+
+```diff
+- /*******************************************************************************
+-                        Ethernet MSP Routines
+- *******************************************************************************/
+- /**
+-   * @brief  Initializes the ETH MSP.
+-   * @param  heth: ETH handle
+-   * @retval None
+-   */
+- void HAL_ETH_MspInit(ETH_HandleTypeDef *heth)
+- {
+-  GPIO_InitTypeDef GPIO_InitStruct = {0};
+-  if(heth->Instance==ETH)
+-  {
+-    /* USER CODE BEGIN ETH_MspInit 0 */
+-
+-    /* USER CODE END ETH_MspInit 0 */
+-    /* Peripheral clock enable */
+-    __HAL_RCC_ETH_CLK_ENABLE();
+-    __HAL_RCC_ETHTX_CLK_ENABLE();
+-    __HAL_RCC_ETHRX_CLK_ENABLE();
+-
+-    __HAL_RCC_GPIOC_CLK_ENABLE();
+-    __HAL_RCC_GPIOA_CLK_ENABLE();
+-    __HAL_RCC_GPIOB_CLK_ENABLE();
+-    __HAL_RCC_GPIOG_CLK_ENABLE();
+-    /**ETH GPIO Configuration
+-    PC1     ------> ETH_MDC
+-    PA1     ------> ETH_REF_CLK
+-    PA2     ------> ETH_MDIO
+-    PA7     ------> ETH_CRS_DV
+-    PC4     ------> ETH_RXD0
+-    PC5     ------> ETH_RXD1
+-    PB15     ------> ETH_TXD1
+-    PG11     ------> ETH_TX_EN
+-    PG13     ------> ETH_TXD0
+-    */
+-    GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_4|GPIO_PIN_5;
+-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+-    GPIO_InitStruct.Pull = GPIO_NOPULL;
+-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+-    GPIO_InitStruct.Alternate = GPIO_AF11_ETH;
+-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+-
+-    GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_7;
+-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+-    GPIO_InitStruct.Pull = GPIO_NOPULL;
+-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+-    GPIO_InitStruct.Alternate = GPIO_AF11_ETH;
+-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+-
+-    GPIO_InitStruct.Pin = GPIO_PIN_15;
+-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+-    GPIO_InitStruct.Pull = GPIO_NOPULL;
+-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+-    GPIO_InitStruct.Alternate = GPIO_AF11_ETH;
+-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+-
+-    GPIO_InitStruct.Pin = GPIO_PIN_11|GPIO_PIN_13;
+-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+-    GPIO_InitStruct.Pull = GPIO_NOPULL;
+-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+-    GPIO_InitStruct.Alternate = GPIO_AF11_ETH;
+-    HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
+-
+-    /* ETH interrupt Init */
+-    HAL_NVIC_SetPriority(ETH_IRQn, 7, 0);
+-    HAL_NVIC_EnableIRQ(ETH_IRQn);
+-    /* USER CODE BEGIN ETH_MspInit 1 */
+-
+-    /* USER CODE END ETH_MspInit 1 */
+-   }
+- }
+```
+
+Whit that the `ethernetif.c` file should be ready to use, next we gonna create the `ethernetif.h` file. On our `firmware/Core/Inc/LWIP/Target/ethernetif.h` file add the following content:
+
+```c
+#ifndef _LWIP_APP_ETHERNET_IF_H_
+#define _LWIP_APP_ETHERNET_IF_H_
+
+#include "lwip/err.h"
+#include "lwip/netif.h"
+#include "cmsis_os2.h"
+
+err_t ethernetif_init(struct netif *netif);
+void ethernet_link_thread(void *argument);
+
+#endif /* _LWIP_APP_ETHERNET_IF_H_ */
+```
+
+Next we gonna create the LWIP configuration file, for that you can copy the contents from ST [lwipopts.h](https://github.com/joaomariolago/stm32h5-zenoh-lwip-demo/tree/master/firmware/Core/Inc/LWIP/Target/lwipopts.h) to our `firmware/Core/Inc/LWIP/Target/lwipopts.h` file.
+
+With this we should have the LWIP stack ready to use, next step is creating the basic application that will start the LWIP stack and configure the interface.
+
+
 ## How to flash and debug
