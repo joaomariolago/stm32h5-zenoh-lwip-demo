@@ -136,5 +136,17 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 }
 
 /* USER CODE BEGIN 1 */
+int _write(int fd, char *ptr, int len)
+{
+  /** In case of printf we keep synchonous since some parts use DMA */
+  if (fd == 1 || fd == 2) {
+    HAL_StatusTypeDef tx_status = HAL_UART_Transmit(&huart3, (uint8_t *)ptr, len, HAL_MAX_DELAY);
 
+    if (tx_status == HAL_OK) {
+      return len;
+    }
+  }
+
+  return -1;
+}
 /* USER CODE END 1 */
