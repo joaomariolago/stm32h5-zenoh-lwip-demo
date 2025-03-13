@@ -42,6 +42,11 @@ add_executable(${CMAKE_PROJECT_NAME})
 # Add STM32CubeMX generated sources
 add_subdirectory(cmake/stm32cubemx)
 
+# Definitions for base project
+target_compile_definitions(stm32cubemx INTERFACE
+    ZENOH_FREERTOS_LWIP
+)
+
 add_library(freertos_config INTERFACE)
 target_include_directories(freertos_config SYSTEM INTERFACE
   "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc"
@@ -99,6 +104,50 @@ target_sources(lan8742 INTERFACE
     "${CMAKE_CURRENT_SOURCE_DIR}/Lib/stm32-lan8742/lan8742.c"
 )
 
+# - Zenoh Pico
+
+#   - Building for FreeRTOS and LWIP
+set(WITH_FREERTOS_PLUS_LWIP "ON" CACHE BOOL "" FORCE)
+
+#   - We want the static library
+set(PACKAGING "OFF" CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS "OFF" CACHE BOOL "" FORCE)
+
+#   - No threads
+set(CHECK_THREADS 0 FORCE)
+set(THREADS_PREFER_PTHREAD_FLAG "OFF" CACHE BOOL "" FORCE)
+
+#   - No tests
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+
+#   - Not supported right now
+set(Z_FEATURE_LINK_UDP_MULTICAST 0 CACHE BOOL "" FORCE)
+set(Z_FEATURE_MULTI_THREAD 0 CACHE BOOL "" FORCE)
+
+set(ZENOH_PICO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Lib/zenoh-pico")
+add_subdirectory("${ZENOH_PICO_DIR}")
+
+# Configure the Zenoh Pico project
+include("${ZENOH_PICO_DIR}/cmake/helpers.cmake")
+configure_include_project(ZENOHPICO zenohpico zenohpico::lib "../.." zenohpico "https://github.com/eclipse-zenoh/zenoh-pico" "")
+
+# Edit the Zenoh Pico CMakeLists.txt to remove any set(CHECK_THREADS ON) line to set(CHECK_THREADS 0)
+set(ZENOH_PICO_CMAKE "${ZENOH_PICO_DIR}/CMakeLists.txt")
+file(READ "${ZENOH_PICO_CMAKE}" ZENOH_PICO_CMAKE_CONTENTS)
+string(REPLACE "set(CHECK_THREADS \"ON\")" "set(CHECK_THREADS 0)" ZENOH_PICO_CMAKE_CONTENTS "${ZENOH_PICO_CMAKE_CONTENTS}")
+file(WRITE "${ZENOH_PICO_CMAKE}" "${ZENOH_PICO_CMAKE_CONTENTS}")
+message(STATUS "Patched Zenoh Pico: Disabled CHECK_THREADS in CMakeLists.txt")
+
+target_link_libraries(zenohpico_static
+  freertos_kernel
+  freertos_config
+  lwip-system
+  lwipcore
+)
+
+# Project Configuration
+
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined library search paths
@@ -107,11 +156,16 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/LWIP/App/ethernet.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/LWIP/Target/ethernetif.c"
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
+    ${LWIP_SPECIFIC_INCLUDE_DIRS}
+    ${LAN8742_SPECIFIC_INCLUDE_DIRS}
+    "${ZENOH_PICO_DIR}/include"
 )
 
 # Add project symbols (macros)
@@ -124,6 +178,10 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
 
     # Add user defined libraries
+    lan8742
+    lwip-system
+    lwipcore
+    zenohpico_static
 )
 
 # Create binary and hex files

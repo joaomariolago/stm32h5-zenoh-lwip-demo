@@ -642,5 +642,130 @@ Next we gonna create the LWIP configuration file, for that you can copy the cont
 
 With this we should have the LWIP stack ready to use, next step is creating the basic application that will start the LWIP stack and configure the interface.
 
+Next we gonna make the base application that will start the LWIP stack and configure the interface. It should be able to fetch a dynamic IP for us when the link is up and allow our main taks to use the network stack.
+
+For this copy the [ethernet.h](https://github.com/joaomariolago/stm32h5-zenoh-lwip-demo/tree/master/firmware/Core/Inc/LWIP/App/ethernet.h) to `firmware/Core/Inc/LWIP/App/ethernet.h` and [ethernet.c](https://github.com/joaomariolago/stm32h5-zenoh-lwip-demo/tree/master/firmware/Core/Src/LWIP/App/ethernet.c) to `firmware/Core/Src/LWIP/App/ethernet.c`.
+
+These files will contain the base of our application and will be responsible for starting the LWIP stack and configuring the interface. You can modify default/fallback IP as well as other parameters on the `ethernet.h` file.
+
+Make sure to add the remaining includes and created files on the CMakeLists.txt file, so add the following lines:
+
+```diff
+# Add sources to executable
+target_sources(${CMAKE_PROJECT_NAME} PRIVATE
+    # Add user sources here
++    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/LWIP/App/ethernet.c"
++    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/LWIP/Target/ethernetif.c"
+)
+
+# Add include paths
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+    # Add user defined include paths
++    ${LWIP_SPECIFIC_INCLUDE_DIRS}
++    ${LAN8742_SPECIFIC_INCLUDE_DIRS}
+)
+
+# Add project symbols (macros)
+target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
+    # Add user defined symbols
+)
+
+# Add linked libraries
+target_link_libraries(${CMAKE_PROJECT_NAME}
+    stm32cubemx
+
+    # Add user defined libraries
++    lan8742
++    lwip-system
++    lwipcore
+)
+```
+
+### Make a simple DHCP IP acquisition
+
+After all the previous steps, we should have the LWIP stack ready to use, so we can make a simple application that will start the stack and configure the interface to acquire a dynamic IP. For this we gonna copy the [ethernet.h](https://github.com/joaomariolago/stm32h5-zenoh-lwip-demo/tree/master/firmware/Core/Inc/LWIP/App/ethernet.h) to `firmware/Core/Inc/LWIP/App/ethernet.h` and [ethernet.c](https://github.com/joaomariolago/stm32h5-zenoh-lwip-demo/tree/master/firmware/Core/Src/LWIP/App/ethernet.c) to `firmware/Core/Src/LWIP/App/ethernet.c`.
+
+After that we can add the following code to the `firmware/Core/Src/app_freertos.c` file:
+
+```diff
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
++ #include <stdio.h>
+
++ #include "lwip/tcpip.h"
++ #include "LWIP/App/ethernet.h"
+/* USER CODE END Includes */
+```
+
+```diff
+/* Private variables ---------------------------------------------------------*/
+/* USER CODE BEGIN Variables */
+
++ osThreadId_t h_app_task;
++ const osThreadAttr_t app_task_attributes = {
++   .name = "app_task",
++   .priority = (osPriority_t) osPriorityNormal,
++   .stack_size = configMINIMAL_STACK_SIZE
++ };
+
+/* USER CODE END Variables */
+```
+
+```diff
+/* USER CODE BEGIN FunctionPrototypes */
+
++ void app_task(void */**argument */);
+
+/* USER CODE END FunctionPrototypes */
+```
+
+```diff
+/* USER CODE END Header_StartDefaultTask */
+void StartDefaultTask(void *argument)
+{
+  /* USER CODE BEGIN defaultTask */
+
++  /** We start with no LED on */
++  HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_RESET);
++  HAL_GPIO_WritePin(LED_YELLOW_GPIO_Port, LED_YELLOW_Pin, GPIO_PIN_RESET);
++  HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_RESET);
+
++  /* Initialize the LwIP stack */
++  tcpip_init(NULL, NULL);
+
++  /** Configures the interface and provides event to notify when ready */
++  net_if_config();
+
++  h_app_task = osThreadNew(app_task, NULL, &app_task_attributes);
+
++  /* Delete the Init Thread */
++  osThreadTerminate(defaultTaskHandle);
+
+  /* USER CODE END defaultTask */
+}
+
+/* Private application code --------------------------------------------------*/
+/* USER CODE BEGIN Application */
++void app_task(void */**argument */)
++{
++  printf("App Task, waiting for net\n");
++
++  /** We want to have net ready before starting this task */
++  osEventFlagsWait(h_net_ready_event, 0x01, osFlagsWaitAny, osWaitForever);
++  /** Green LED for user, net is red! */
++  HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_SET);
++
++  printf("Net Ready\n");
++
++  for (;;)
++  {
++    printf("App Task\n");
++    osDelay(1000);
++  }
++}
+/* USER CODE END Application */
+```
+
+After these additions we should have a simple application that will start the LWIP stack and configure the interface to acquire a dynamic IP. The leds should have a specific pattern, RED on means link is down, RED off means link up but interface not ready, YELLOW blinking means DHCP process is running and GREEN on means interface is ready to use.
 
 ## How to flash and debug

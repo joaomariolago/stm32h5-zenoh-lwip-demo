@@ -66,12 +66,43 @@ a lot of data that needs to be copied, this should be set high. */
 
 /* MEMP_NUM_TCP_SEG: the number of simultaneously queued TCP
    segments. */
-#define MEMP_NUM_TCP_SEG TCP_SND_QUEUELEN
+#define MEMP_NUM_TCP_SEG 64
+
+/** Extra */
+#define MEMP_NUM_ARP_QUEUE 20
+
+#define LWIP_ARP 1
+#define LWIP_ETHERNET 1
+#define LWIP_RAW 1
+#define LWIP_IPV4 1
+#define LWIP_IGMP 1
+
+#define MEM_STATS 0
+#define SYS_STATS 0
+#define MEMP_STATS 0
+#define LINK_STATS 0
+
+#define LWIP_TCP_KEEPALIVE 1
+#define LWIP_NETIF_TX_SINGLE_PBUF 1
+#define DHCP_DOES_ARP_CHECK 0
+#define LWIP_DHCP_DOES_ACD_CHECK 0
+#define LWIP_SOCKET_POLL 0
+#define LWIP_MULTICAST_TX_OPTIONS 1
+
+#define TCP_LISTEN_BACKLOG 1
+#define DEFAULT_RAW_RECVMBOX_SIZE 16
+#define DEFAULT_UDP_RECVMBOX_SIZE 16
+#define DEFAULT_TCP_RECVMBOX_SIZE 16
+#define DEFAULT_ACCEPTMBOX_SIZE 16
+#define TCPIP_MBOX_SIZE 16
+#define LWIP_TIMEVAL_PRIVATE 0
+
+#define LWIP_SO_LINGER 1
 
 /* ---------- Pbuf options ---------- */
 
 /* PBUF_POOL_BUFSIZE: the size of each pbuf in the pbuf pool */
-#define PBUF_POOL_BUFSIZE 1536
+#define PBUF_POOL_SIZE 24
 
 /* LWIP_SUPPORT_CUSTOM_PBUF == 1: to pass directly MAC Rx buffers to the stack
    no copy is needed */
@@ -83,6 +114,8 @@ a lot of data that needs to be copied, this should be set high. */
    ------------------------------------------------
 */
 #define LWIP_NETIF_LINK_CALLBACK 1
+#define LWIP_NETIF_STATUS_CALLBACK 1
+#define LWIP_NETIF_HOSTNAME 1
 
 /* ---------- TCP options ---------- */
 #define LWIP_TCP 1
@@ -92,10 +125,12 @@ a lot of data that needs to be copied, this should be set high. */
 #define TCP_MSS (1500 - 40) /* TCP_MSS = (Ethernet MTU - IP header size - TCP header size) */
 
 /* TCP sender buffer space (bytes). */
-#define TCP_SND_BUF (4 * TCP_MSS)
+#define TCP_SND_BUF (16 * TCP_MSS)
 
 /* TCP receive window. */
-#define TCP_WND (4 * TCP_MSS)
+#define TCP_WND (16 * TCP_MSS)
+
+#define TCP_SND_QUEUELEN ((4 * (TCP_SND_BUF) + (TCP_MSS - 1)) / (TCP_MSS))
 
 /* ---------- ICMP options ---------- */
 #define LWIP_ICMP 1
@@ -218,12 +253,17 @@ The STM32H5xx allows computing and verifying the IP, UDP, TCP and ICMP checksums
 */
 
 #define TCPIP_THREAD_NAME "TCP/IP"
-#define TCPIP_THREAD_STACKSIZE 2048
-#define TCPIP_MBOX_SIZE 6
-#define DEFAULT_UDP_RECVMBOX_SIZE 6
-#define DEFAULT_TCP_RECVMBOX_SIZE 6
-#define DEFAULT_ACCEPTMBOX_SIZE 6
-#define DEFAULT_THREAD_STACKSIZE 1024
+#define TCPIP_THREAD_STACKSIZE 8192
+#define DEFAULT_THREAD_STACKSIZE 4096
 #define TCPIP_THREAD_PRIO osPriorityHigh
+
+#define LWIP_DEBUG LWIP_DBG_OFF
+// #define NETIF_DEBUG LWIP_DBG_ON
+// #define DHCP_DEBUG LWIP_DBG_ON
+// #define UDP_DEBUG  LWIP_DBG_ON
+// #define TCP_DEBUG  LWIP_DBG_ON
+// #define MEMP_DEBUG LWIP_DBG_ON
+// #define MEM_DEBUG LWIP_DBG_ON
+// #define ICMP_DEBUG LWIP_DBG_ON
 
 #endif /* __LWIPOPTS_H__ */
