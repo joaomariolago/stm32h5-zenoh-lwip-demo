@@ -23,6 +23,9 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+
+#include "lwip/tcpip.h"
+#include "LWIP/App/ethernet.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -43,6 +46,13 @@
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
 
+osThreadId_t h_app_task;
+const osThreadAttr_t app_task_attributes = {
+  .name = "app_task",
+  .priority = (osPriority_t) osPriorityNormal,
+  .stack_size = configMINIMAL_STACK_SIZE
+};
+
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
@@ -54,6 +64,8 @@ const osThreadAttr_t defaultTask_attributes = {
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
+
+void app_task(void */**argument */);
 
 /* USER CODE END FunctionPrototypes */
 
@@ -104,17 +116,43 @@ void MX_FREERTOS_Init(void) {
 void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN defaultTask */
-  /* Infinite loop */
-  for(;;)
-  {
-    printf("Hello World!\n");
-    osDelay(1000);
-  }
+
+  /** We start with no LED on */
+  HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED_YELLOW_GPIO_Port, LED_YELLOW_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_RESET);
+
+  /* Initialize the LwIP stack */
+  tcpip_init(NULL, NULL);
+
+  /** Configures the interface and provides event to notify when ready */
+  net_if_config();
+
+  h_app_task = osThreadNew(app_task, NULL, &app_task_attributes);
+
+  /* Delete the Init Thread */
+  osThreadTerminate(defaultTaskHandle);
+
   /* USER CODE END defaultTask */
 }
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+void app_task(void */**argument */)
+{
+  printf("App Task, waiting for net\n");
 
+  /** We want to have net ready before starting this task */
+  osEventFlagsWait(h_net_ready_event, 0x01, osFlagsWaitAny, osWaitForever);
+  /** Green LED for user, net is red! */
+  HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_SET);
+
+  printf("Net Ready\n");
+
+  for (;;)
+  {
+    printf("App Task\n");
+    osDelay(1000);
+  }
+}
 /* USER CODE END Application */
-
