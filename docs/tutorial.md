@@ -1,162 +1,197 @@
 # Zenoh-Pico & LWIP with STM32H5 Step By Step Tutorial
 
+## List of Contents
+
+- [Zenoh-Pico \& LWIP with STM32H5 Step By Step Tutorial](#zenoh-pico--lwip-with-stm32h5-step-by-step-tutorial)
+  - [List of Contents](#list-of-contents)
+  - [Overview](#overview)
+  - [Project Setup](#project-setup)
+    - [CubeMX Project Creation](#cubemx-project-creation)
+    - [Clock Configuration](#clock-configuration)
+    - [Configure the ICACHE](#configure-the-icache)
+    - [Configure USART3](#configure-usart3)
+    - [Configure the Ethernet](#configure-the-ethernet)
+    - [Configuring user button and leds](#configuring-user-button-and-leds)
+    - [Final Pinout Configuration](#final-pinout-configuration)
+    - [FreeRTOS](#freertos)
+  - [Coding](#coding)
+    - [Add Connection for UART and printf](#add-connection-for-uart-and-printf)
+    - [Change base CMake to Performance (Optional)](#change-base-cmake-to-performance-optional)
+    - [Create hex, bin and elf files (Optional)](#create-hex-bin-and-elf-files-optional)
+    - [Add needed submodules](#add-needed-submodules)
+    - [Basic needed prerequisites configuration on CMakelists.txt](#basic-needed-prerequisites-configuration-on-cmakeliststxt)
+    - [Configure the LWIP lib from ST](#configure-the-lwip-lib-from-st)
+    - [Configure the LAN8742 from ST](#configure-the-lan8742-from-st)
+    - [Add needed base files for LWIP to operate](#add-needed-base-files-for-lwip-to-operate)
+    - [Make a simple DHCP IP acquisition](#make-a-simple-dhcp-ip-acquisition)
+    - [Configure the Zenoh-Pico lib](#configure-the-zenoh-pico-lib)
+    - [Declare a simple pub/sub example](#declare-a-simple-pubsub-example)
+  - [How to flash and debug](#how-to-flash-and-debug)
+
 ## Overview
 
-This file is a detailed step-by-step tutorial on how to integrate **Zenoh-Pico** and **LWIP** with an **STM32H563ZI Nucleo board**. It covers all steps from the CubeMX project creation and peripherals setup, modification on CMakeLists.txt, to include required libraries, a basic pub/sub example and how to use **GitHub Actions** for automating builds and firmware releases.
-This tutorial assumes that you have some basic knowledge of STM32CubeMX, CMake, and GitHub Actions. And that you are using a NUCLUEO-H563ZI board, if you are using a different board, you may need to adjust some aspects as pinout and clock configuration based on the board's datasheet.
+This documentation provides a comprehensive, step-by-step tutorial on integrating **Zenoh-Pico** and **LWIP** with the **STM32H563ZI Nucleo board**. It guides you through the entire process, from creating the initial CubeMX project and configuring peripherals, to modifying the `CMakeLists.txt` file, integrating the required libraries, implementing a basic publish/subscribe example, and utilizing **GitHub Actions** to automate firmware builds and releases.
+
+This tutorial assumes prior familiarity with **STM32CubeMX**, **CMake**, and **GitHub Actions**. Although the instructions target the **NUCLEO-H563ZI**, they can be adapted for other STM32 boards. If you are using a different board, please refer to its datasheet and adjust configurations such as pin assignments and clock settings accordingly.
 
 ## Project Setup
 
 ### CubeMX Project Creation
 
-Open STM32CubeMX and on the top bar, uses File -> New Project.
+Open **STM32CubeMX**, navigate to the top menu bar, and select **File → New Project**.
 
 <img src="cubemx/1.png" />
 <img src="cubemx/2.png" />
 
-When prompted about TrustZone, select the option "withoud TrustZone activated".
+When prompted about TrustZone, select the option **"Without TrustZone activated"**.
 
-First step, go to Project Manager and uses the **browse** button to select the location of the project, and the project name to give a name to the project. Make sure also to change the **Toolcahin / IDE** to CMake.
+Next, navigate to **Project Manager**, click the **Browse** button to choose the project location, and specify a project name. Ensure the **Toolchain / IDE** is set to **CMake**.
 
 <img src="cubemx/3.png" />
 
-One extra step, this is optional, but I recommend since it keeps the code more organized. Go to the Project Manager -> Code Generator and set the **Generate peripheral initialization as a pair of '.c/.h' files per peripheral**. This will make CubeMX split the peripheral initialization code into a .c and .h file, making it easier to modularize the code.
-Also recommended to change to **Copy only the necessary library files** to avoid copying unnecessary files.
+As an optional but recommended step for better code organization, go to **Project Manager → Code Generator** and enable **"Generate peripheral initialization as a pair of '.c/.h' files per peripheral"**. This setting modularizes the generated code by separating each peripheral's initialization into distinct source and header files.
+
+Additionally, enable **"Copy only the necessary library files"** to prevent unnecessary files from being included in the project.
 
 <img src="cubemx/4.png" />
 
 ### Clock Configuration
 
-This step is specific to the NUCLEO-H563ZI board. If you are using a different board, you may need to adjust the clock configuration based on the board's datasheet.
+This step is specific to the **NUCLEO-H563ZI** board. If you are using a different board, refer to its datasheet to adjust the clock configuration accordingly.
 
-Go to the Pinout & Configuration -> System Core -> RCC
+Navigate to **Pinout & Configuration → System Core → RCC**, and apply the following settings:
 
-1. HSE set to BYPASS Clock Source
-2. LSE set to Crystal/Ceramic Resonator
+1. Set **HSE** to **BYPASS Clock Source**
+2. Set **LSE** to **Crystal/Ceramic Resonator**
 
 <img src="cubemx/5.png" />
 
-After this step go to the Clock Configuration and make the following changes:
+After completing the previous step, navigate to the **Clock Configuration** tab and apply the following settings:
 
-1. Click on teh Input Frequency (HSE) and set it to 8MHz, just click on the field and type the value 8.
-2. Set the PLL1 Source to HSE
-3. Set System Clock Mux to PLLCLK
+1. Set the **Input Frequency (HSE)** to **8 MHz** by clicking the corresponding field and entering the value.
+2. Set the **PLL1 Source** to **HSE**.
+3. Set the **System Clock Mux** to **PLLCLK**.
 
 <img src="cubemx/6.png" />
 
-After these steps you should have some errors on the clock sector, just go to the HCLK (MHz) and set it to 250MHz, and click enter. You should see a message stating that the configuration is being updated, after some seconds the errors should disappear and your configuration should be like this:
+After applying these settings, you may encounter errors in the clock configuration section. To resolve them, set the **HCLK (MHz)** to **250 MHz** and press **Enter**. A message will appear indicating that the configuration is being updated. After a few moments, the errors should be cleared, and the clock configuration will be correctly applied.
 
 <img src="cubemx/7.png" />
 
 ### Configure the ICACHE
 
-On the Pinout & Configuration -> System Core -> ICACHE, enable the ICACHE to 1 way direct mapped.
+Navigate to **Pinout & Configuration → System Core → ICACHE**, and set **ICACHE** to **1-way direct mapped**.
 
 <img src="cubemx/8.png" />
 
 ### Configure USART3
 
-On the NUCLEO-H563ZI board, the USART3 is connected to the ST-Link, so we can use it to print debug messages. Go to the Pinout & Configuration -> Connectivity -> USART3 and enable the USART3 setting it to asynchronous mode. All configurations are default.
+On the **NUCLEO-H563ZI** board, **USART3** is connected to the **ST-Link** and can be used for printing debug messages. Navigate to **Pinout & Configuration → Connectivity → USART3**, enable **USART3**, and set it to **Asynchronous Mode**. Use the default configuration settings.
 
 <img src="cubemx/9.png" />
 
-After that we need to fix the USART3 pinout, RX to PD9 and TX to PD8.
+Next, configure the **USART3** pinout as follows:
+
+- Set **RX** to **PD9**
+- Set **TX** to **PD8**
 
 <img src="cubemx/10.png" />
 
 ### Configure the Ethernet
 
-On the NUCLEO-H563ZI board, the Ethernet is connected to the RMII interface, so we need to configure it. Go to the Pinout & Configuration -> Connectivity -> ETH and enable the ETH setting it to RMII mode. YOu can play with the configuration after having the base project working, but for now just set the TX Descriptor length to 12 and RX Descriptor length to 8. MAC address you can change or leave the default.
+On the **NUCLEO-H563ZI** board, the Ethernet interface is connected via **RMII**, and must be configured accordingly. Navigate to **Pinout & Configuration → Connectivity → ETH**, enable **ETH**, and set the **Mode** to **RMII**.
+
+For initial setup, apply the following settings:
+
+- Set **TX Descriptor Length** to **12**
+- Set **RX Descriptor Length** to **8**
+- Leave the **MAC Address** as default or modify it if needed
+
+Further adjustments can be made once the base project is functional.
 
 <img src="cubemx/11.png" />
 
-Make sure also to enable the Ethernet Global Interrupt on the NVIC settings.
+Ensure that the **Ethernet Global Interrupt** is enabled in the **NVIC Settings**.
 
 <img src="cubemx/12.png" />
 
-After this also make sure to change the Code generator to not automatically generate the ETH init function call since it will be called on the LWIP ethernetif.c file. Go to Project Manager -> Advanced Settings -> Do note Generate Function Call -> MX_ETH_Init
+Next, configure the code generator to avoid automatically calling the **MX_ETH_Init** function, as it will be invoked within the LWIP `ethernetif.c` file.
+Navigate to **Project Manager → Advanced Settings**, and under **Do Not Generate Function Call**, select **MX_ETH_Init**.
 
 <img src="cubemx/13.png" />
 
-On the pinout side make sure the following configurations are set:
+On the **Pinout** view, ensure the following Ethernet-related pin assignments are configured:
 
-EHT_TXD0 to PG13
-THE_TX_EN to PG11
+- **ETH_TXD0** → **PG13**
+- **ETH_TX_EN** → **PG11**
+- **ETH_MDC** → **PC1**
+- **ETH_REF_CLK** → **PA1**
+- **ETH_MDIO** → **PA2**
+- **ETH_CRS_DV** → **PA7**
+- **ETH_RXD0** → **PC4**
+- **ETH_RXD1** → **PC5**
+- **ETH_TXD1** → **PB15**
 
-ETH_MDC to PC1
-ETH_REF_CLK to PA1
-ETH_MDIO to PA2
-
-ETH_CRS_DV to PA7
-ETH_RXD0 to PC4
-ETH_RXD1 to PC5
-
-ETH_TXD1 to PB15
-
-For images, check the final pinout after the next section.
+Refer to the final pinout diagram after the next section for visual confirmation.
 
 ### Configuring user button and leds
 
-For the user button:
-- Set PC13 to GPIO_EXTI13, add a user label USER_BUTTON
+For the **User Button** and **LEDs**, apply the following pin configurations and labels:
 
-For the user leds:
-- Set PF4 to GPIO_Output, add a user label LED_YELLOW
-- Set PB0 to GPIO_Output, add a user label LED_GREEN
-- Set PG4 to GPIO_Output, add a user label LED_RED
+- **PC13** → **GPIO_EXTI13**, label as **USER_BUTTON**
+- **PF4** → **GPIO_Output**, label as **LED_YELLOW**
+- **PB0** → **GPIO_Output**, label as **LED_GREEN**
+- **PG4** → **GPIO_Output**, label as **LED_RED**
 
 ### Final Pinout Configuration
 
-After all these steps, your pinout configuration should look like this:
+After completing all the above steps, your **pinout configuration** should appear as shown in the reference image below.
 
 <img src="cubemx/14.png" />
 
 ### FreeRTOS
 
-Even though LWIP can run using bare main loop, as we gonna use zenoh-pico we need to set a RTOS.
-Go to Pinout & Configuration -> Middleware and Software Packs -> X-CUBE-FREERTOS and click on it. If it is the first time, you may be prompted to download the package, just click on download.
-When everything is ready you should be able to select to use the package. Apply the following configurations and click on OK.
+Although **LWIP** can operate using a bare main loop, the use of **Zenoh-Pico** requires an **RTOS**.
+
+Navigate to **Pinout & Configuration → Middleware and Software Packs → X-CUBE-FREERTOS**, and click on it. If this is your first time accessing it, you may be prompted to download the package—proceed with the download.
+
+Once available, select the package and apply the required configurations. Click **OK** to confirm.
 
 <img src="cubemx/15.png" />
 
-After this step, before any other step click on generate code, since there is a bug on CubeMX in some version and platforms that can cause the IOC file to turn invalid.
+After enabling **FreeRTOS**, immediately click **Generate Code** to avoid potential corruption of the `.ioc` file due to a known bug in certain versions of STM32CubeMX on specific platforms.
 
-> This step may be need or not depending on the CubeMX version and the platform, some versions of CubeMX when you select the enable FreeRTOS it will cause CubeMX to crash. If this happens to you, just close CubeMX and open the project using STM32CubeIDE and go to the Pinout & Configuration -> Middleware and Software Packs -> X-CUBE-FREERTOS and enable it there. After you can just close STM32CubeIDE and return to CubeMX. Make sure only to go to **Project Manager** and also to change the **Toolcahin / IDE** to CMake, since STM32CubeIDE will automatically change it to STM32CubeIDE. You can also delete the `.project` file that STM32CubeIDE generates.
+> **Note:** In some cases, enabling FreeRTOS may cause STM32CubeMX to crash. If this occurs, close CubeMX and open the project in **STM32CubeIDE**. Navigate to **Pinout & Configuration → Middleware and Software Packs → X-CUBE-FREERTOS** and enable FreeRTOS there. Once configured, you can close STM32CubeIDE and return to CubeMX.
+> Ensure you revisit **Project Manager** and reset the **Toolchain / IDE** to **CMake**, as STM32CubeIDE may change it automatically. You may also delete the `.project` file generated by STM32CubeIDE.
 
-After this we need to change the base system timer to use other than SysTick, since it will be used by FreeRTOS. Go to the Pinout & Configuration -> System Core -> SYS and change the **Timebase Source** to TIM12.
+Next, configure a dedicated system timer for FreeRTOS. Navigate to **Pinout & Configuration → System Core → SYS** and set the **Timebase Source** to **TIM12**.
 
 <img src="cubemx/16.png" />
 
-The next step is a recommendation, but it will vary depending on your firmware needs, but its recommended to set the minimal stack size and the heap size to some value greater than the default since they are very small. I recommend at least 2kB for the stack size and 40kB for the heap size.
+The next step is a recommendation and may vary based on your firmware requirements. However, it is advisable to increase the **minimal stack size** and **heap size**, as the default values are typically very small.
+
+It is recommended to set:
+
+- **Minimal Stack Size** to **2 KB**
+- **Heap Size** to **40 KB**
 
 <img src="cubemx/17.png" />
 
-After go to eh System Core -> NVIC and change the ETH global interrupt to a preemption priority of 7.
+Next, navigate to **System Core → NVIC** and set the **ETH Global Interrupt** to a **preemption priority of 7**.
 
 <img src="cubemx/18.png" />
 
-Finally Generate the code.
+Finally, click **Generate Code** to apply all configurations and generate the project files.
 
-### Coding
+## Coding
 
-Now we gonna start the coding part of the project, we gonna make some steps to make the project ready to use Zenoh-Pico and LWIP.
+Now begin the coding phase of the project. The following steps will prepare the project for integrating **Zenoh-Pico** and **LWIP**.
 
-1. Add connection for UART and printf so we can debug the project.
-2. Change base CMake to Performance (Optional)
-3. Create hex, bin and elf files (Optional)
-4. Add needed submodules
-5. Basic needed prerequisites configuration on CMakelists.txt
-6. Configure the LWIP lib from ST
-7. Configure the LAN8742 from ST
-8. Add needed base files for LWIP to operate
-9. Make a simple DHCP IP acquisition
-10. Configure the Zenoh-Pico lib
-11. Declare a simple pub/sub example
+### Add Connection for UART and printf
 
-#### Add connection for UART and printf
+To enable debugging and logging, set up the UART connection to support the `printf` function. If you selected the option to generate peripheral initialization as a pair of `.c/.h` files per peripheral, use the respective file. Otherwise, you may place the code in `main.c`.
 
-First of all we need to add the connection for the UART and printf so we can debug / log the project. For now on I'll use each peripheral file, but if when configuring the project you didn't select to generate the peripheral initialization as a pair of '.c/.h' files per peripheral, you can just use the `main.c` file.
-Add this to the `/* USER CODE BEGIN 1 */` section of the `firmware/Core/Src/usart.c` file:
+Add the following implementation to the `/* USER CODE BEGIN 1 */` section of the `firmware/Core/Src/usart.c` file:
 
 ```c
 int _write(int fd, char *ptr, int len)
@@ -174,8 +209,9 @@ int _write(int fd, char *ptr, int len)
 }
 ```
 
-This will allows us to use the `printf` function to print debug messages. After that we can add some test to see if everything is working.
-On the `firmware/Core/Src/app_freertos.c` include the following code to the respective sections:
+This enables the use of the `printf` function for printing debug messages over UART.
+
+To verify functionality, add a simple test in the `firmware/Core/Src/app_freertos.c` file by inserting the following code into the respective sections:
 
 ```c
 /* USER CODE BEGIN Includes */
@@ -194,20 +230,27 @@ for(;;)
 /* USER CODE END defaultTask */
 ```
 
-After that you can go to the [How to flash and debug](#how-to-flash-and-debug) section, flash the firmware and open some serial monitor to see the "Hello World!" message.
+After completing these steps, proceed to the [How to Flash and Debug](#how-to-flash-and-debug) section. Flash the firmware to the board and open a serial monitor to verify that the message **"Hello World!"** is being printed.
 
 ### Change base CMake to Performance (Optional)
 
-This step is optional, it may depend on your application, since by default CubeMX will generate its base cmake using flags `-O0 -g3` it may sometimes generate code that is not optimized after the compilation. By default this is good for micro controllers since a lot of times compiler can cut code away when optimizing thinking that its not needed, and `-O0` will block the compiler to do it. But the code may be slow, so as a lot of applications, like in my case need high performance, and I don't care that much if my code is larger, I recommend in this case to change to `-Ofast` to get the best performance possible. Bu be carefull since this will make much easy to have strange bugs and parts of the code suddenly stop working since the compiler may optimize thinks that are not cleary stated as volatile and other loops. This does not directly conveys to this doc, but as we want to saturate the link and extract best performance from the board, I recommend to change it. For your application take the following consideration:
+This step is optional and should be considered based on the specific needs of your application.
 
-- Do you need the maximum performance possible?
-  - Yes: Change to `-Ofast`
-  - No: Keep as is
-- Do you need minimum resource usage or low power consumption?
-  - Yes: Keep as is
-  - No: Change to `-Ofast`
+By default, **STM32CubeMX** generates the base CMake configuration using the flags `-O0 -g3`, which disables optimizations. This setting is generally suitable for microcontrollers, as aggressive optimizations can result in code being removed if not explicitly marked (e.g., `volatile`), potentially leading to unexpected behavior. However, it may also result in slower execution.
 
-If you decide to change, go to the `firmware/cmake/gcc-arm-none-eabi.cmake` file and make following changes:
+If your application requires **maximum performance** and **code size is not a concern**, it is recommended to change the optimization level to `-Ofast`. Be aware that this can introduce subtle bugs due to compiler optimizations, especially in sections of code that depend on side effects or precise timing.
+
+Use the following guidelines to decide:
+
+- **Do you need the maximum performance possible?**
+  - **Yes:** Use `-Ofast`
+  - **No:** Keep the default settings
+
+- **Do you need to minimize resource usage or power consumption?**
+  - **Yes:** Keep the default settings
+  - **No:** Use `-Ofast`
+
+To enhance performance through optimization, open the `firmware/cmake/gcc-arm-none-eabi.cmake` file and apply the following modifications:
 
 Remove the following lines:
 ```diff
@@ -225,6 +268,7 @@ Remove the following lines:
 ```
 
 And add the following lines:
+
 ```diff
 + set(COMMON_FLAGS "${COMMON_FLAGS} ${TARGET_FLAGS}")
 + set(COMMON_FLAGS "${COMMON_FLAGS}  -Wall -Wextra -Wpedantic -fdata-sections -ffunction-sections")
@@ -240,9 +284,9 @@ And add the following lines:
 + set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=gnu++17 -fno-rtti -fno-exceptions -fno-threadsafe-statics")
 ```
 
-# Create hex, bin and elf files (Optional)
+### Create hex, bin and elf files (Optional)
 
-If you want to generate the hex, bin and elf files, you can add the following lines to the end of `firmware/CMakeLists.txt` file:
+To generate the HEX, BIN, and ELF files, append the following lines to the end of the `firmware/CMakeLists.txt` file:
 
 ```cmake
 # Create binary and hex files
@@ -258,14 +302,13 @@ add_custom_command(
 
 ### Add needed submodules
 
-This project will need LWIP, LAN8742 and Zenoh-Pico, so we will add as submodule for the project.
-To do so follow these steps:
+This project requires **LWIP**, **LAN8742**, and **Zenoh-Pico**, which will be added as submodules. To include these dependencies, follow the steps below:
 
-1. Create a folder within the firmware folder called `Lib`
-2. Open a terminal and navigate to the `firmware/Lib` folder
-3. Run the following commands:
+1. Create a directory named `Lib` inside the `firmware` folder.
+2. Open a terminal and navigate to the `firmware/Lib` directory.
+3. Execute the following commands:
 
-TODO: Add note to use custom branch while the PR is not merged on zenoh-pico
+> **Note:** Until the pull request is merged in the official Zenoh-Pico repository, be sure to use the appropriate custom branch.
 
 ```bash
 git submodule add git@github.com:STMicroelectronics/stm32-mw-lwip.git
@@ -273,7 +316,7 @@ git submodule add git@github.com:STMicroelectronics/stm32-lan8742.git
 git submodule add git@github.com:eclipse-zenoh/zenoh-pico.git
 ```
 
-After that you should have the following structure:
+After completing these steps, your project structure should resemble the following:
 
 ```
 firmware
@@ -285,11 +328,10 @@ firmware
 
 ### Basic needed prerequisites configuration on CMakelists.txt
 
-Before starting configuring each submodule, we need to add some basic configurations to the `firmware/CMakeLists.txt` file. This will mainly be creationg of some targets needed by zenoh pico and creation of a variable with needed import modules for other submodules. Also optionally enabling C++ support.
+Before configuring each submodule, it is necessary to add some basic settings to the `firmware/CMakeLists.txt` file. These include the creation of required targets for Zenoh-Pico, the definition of a variable listing the modules to be imported by other submodules, and optionally, the enabling of C++ support.
 
-If you want to have C++ support, make the following changes on `firmware/CMakeLists.txt`:
+To enable C++ support, make the following modifications to the top of the `firmware/CMakeLists.txt` file:
 
-On the top of the file add following lines:
 ```diff
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -306,9 +348,9 @@ set(CMAKE_C_EXTENSIONS ON)
 + enable_language(C ASM CXX)
 ```
 
-Now, after the inclusion of the `cmake/stm32cubemx` subdirectory we need to get its include directories to pass to other libraries as well as creating a new library `freertos_config` so we can pass to other submodules, we also need to alias the stm32cubemx target to be the freertos_kernel. All of this will be detailed bellow, and all changes needed to be done in `firmware/CMakeLists.txt`:
+After including the `cmake/stm32cubemx` subdirectory, it is necessary to extract its include directories for use in other libraries, create a `freertos_config` library target for use by submodules, and alias the `stm32cubemx` target to `freertos_kernel`. These steps are essential for proper integration and should all be applied to the `firmware/CMakeLists.txt` file.
 
-First lets create a `freertos_config` target so we can pass to other submodules:
+We begin by creating the `freertos_config` target, which will be passed to other submodules:
 
 ```diff
 # Add STM32CubeMX generated sources
@@ -328,7 +370,7 @@ After that we need to alias the `stm32cubemx` target to be the `freertos_kernel`
 + add_library(freertos_kernel ALIAS stm32cubemx)
 ```
 
-Finally lets create a variable providing the include directories from `stm32cubemx` target so we can forward to other submodules:
+Finally, lets define a variable containing the include directories from the `stm32cubemx` target. This will allow us to forward the necessary paths to other submodules for proper integration:
 
 ```diff
 + # Get include directories provided by STM32CubeMX
@@ -365,7 +407,7 @@ target_sources(lwip-system  INTERFACE
 add_subdirectory(Lib/stm32-mw-lwip)
 ```
 
-This will add the LWIP lib, instruct it where to find needed includes as well compiling the `OS` that provides basic functions for the LWIP to work. As noticed there is a specific path `"${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/LWIP/Target"` that is added but not yet created. In following steps we will create it and add the LWIP config file there.
+This step adds the **LWIP** library, specifies the required include directories, and compiles the `OS` component that provides the fundamental functionality required for LWIP to operate. Note that a specific path—`"${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/LWIP/Target"`—is included, but this directory does not yet exist. In the following steps, we will create this directory and add the necessary LWIP configuration file to it.
 
 ### Configure the LAN8742 from ST
 
@@ -390,7 +432,7 @@ target_sources(lan8742 INTERFACE
 
 ### Add needed base files for LWIP to operate
 
-If all steps were followed correctly, we should be able to add the needed ethernet interface files in our project and already create some basic application that uses the LWIP stack. To do so, we gonna need to add the following project structure:
+If all the previous steps have been followed correctly, you should now be able to add the necessary Ethernet interface files to the project and begin developing a basic application that utilizes the LWIP stack. To proceed, the following project structure must be added:
 
 ```
 firmware
@@ -412,13 +454,15 @@ firmware
 |   |   |   ...
 ```
 
-The function for each file is:
+Each file in the structure serves a specific role within the Ethernet integration:
 
-- `ethernet.h` and `ethernet.c`: This is the main application file that will use and startup basic processes on the LWIP stack, it will basically start the stack and configure the interface, adding either a static IP or using DHCP to acquire one. You can modify this file to make any kind of configuration needed by other modules to operate corretly. Think of it as a startup step to make the network stack ready to use.
-- `ethernetif.h` and `ethernetif.c`: This is the interface file that will be used by the LWIP stack to communicate with the hardware, it will be responsible for sending and receiving packets from the network. This will be basically the file provided by default from ST with some small modifications to connect it with the generated code from CubeMX.
-- `lwipopts.h`: This is the configuration file for the LWIP stack, it will be used to configure the stack to work as we want, like setting the number of buffers, the size of the buffers, the number of connections, etc.
+- **`ethernet.h` and `ethernet.c`**: These files form the main application layer responsible for initializing and starting the LWIP stack. They handle the interface configuration, including setting a static IP or acquiring one via DHCP. You may modify these files to include any additional setup required by other modules. Think of this as the network stack's startup logic.
 
-So first of all make sure to create all required folders and files, and then follow next steps to configure them.
+- **`ethernetif.h` and `ethernetif.c`**: These files implement the hardware interface for LWIP. They manage the low-level transmission and reception of network packets. These are typically based on the default ST-provided implementations, with minor modifications to integrate with the code generated by STM32CubeMX.
+
+- **`lwipopts.h`**: This is the LWIP configuration file, which defines stack parameters such as buffer counts and sizes, maximum number of connections, and other behavior customizations to tailor the stack to your application needs.
+
+Before proceeding, ensure all required folders and files are created. Once the structure is in place, continue with the following steps to configure them properly.
 
 Most part of the files will be based on the provided from [st classic-coremw-apps](https://github.com/STMicroelectronics/stm32h5-classic-coremw-apps) repository, for the H5 series. For our example we gonna use the [LwIP_HTTP_Server_Socket_RTOS](https://github.com/STMicroelectronics/stm32h5-classic-coremw-apps/tree/main/Projects/NUCLEO-H563ZI/Applications/LwIP/LwIP_HTTP_Server_Socket_RTOS) as a base. Some concepts were also used from the tutorial post on ST comunity [How to use the LwIP Ethernet middleware on the STM32H5 series](https://community.st.com/t5/stm32-mcus/how-to-use-the-lwip-ethernet-middleware-on-the-stm32h5-series/ta-p/691100). Thanks to the authors for the great content.
 
@@ -462,7 +506,7 @@ First lets modify the includes to take in account our project structure, so chan
 + #include "LWIP/Target/ethernetif.h"
 ```
 
-Second we need to change some variables to extern since they will be generated in our `eth.c` file. Change the following variables:
+Secondly, we need to change some variables to `extern` since they will be defined in our `eth.c` file. Change the following variables:
 
 ```diff
 - ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
@@ -478,16 +522,16 @@ ETH_HandleTypeDef EthHandle;
 + extern ETH_TxPacketConfigTypeDef TxConfig;
 ```
 
-After this we can remove the following line and use find and replace to change all exact matches of `EthHandle` for `heth`:
+After this, we can remove the following line and use find and replace to change all exact matches of `EthHandle` to `heth`:
 
 ```diff
 /* Global Ethernet handle */
 - ETH_HandleTypeDef EthHandle;
 ```
 
-Make sure to use exact match, identation and match whole word to avoid changing other variables that may have the same name.
+Make sure to use exact match, indentation, and match whole word to avoid modifying other variables with the same name.
 
-After this we need to change the `low_level_init` function to make use of our generated code from CubeMX. Change the following lines:
+Next, we need to modify the `low_level_init` function to utilize the code generated by CubeMX. Change the following lines:
 
 ```diff
 static void low_level_init(struct netif *netif)
@@ -545,7 +589,7 @@ static void low_level_init(struct netif *netif)
   /* create a binary semaphore used for informing ethernetif of frame reception */
 ```
 
-Finally we need to remove the Ethernet MSP since they are generated by CubeMX, so remove the following content:
+Finally, we need to remove the Ethernet MSP code since it is generated by CubeMX. Remove the following content:
 
 ```diff
 - /*******************************************************************************
@@ -622,7 +666,7 @@ Finally we need to remove the Ethernet MSP since they are generated by CubeMX, s
 - }
 ```
 
-Whit that the `ethernetif.c` file should be ready to use, next we gonna create the `ethernetif.h` file. On our `firmware/Core/Inc/LWIP/Target/ethernetif.h` file add the following content:
+With that, the `ethernetif.c` file should be ready to use. Next, we will create the `ethernetif.h` file. In the `firmware/Core/Inc/LWIP/Target/ethernetif.h` file, add the following content:
 
 ```c
 #ifndef _LWIP_APP_ETHERNET_IF_H_
@@ -638,11 +682,11 @@ void ethernet_link_thread(void *argument);
 #endif /* _LWIP_APP_ETHERNET_IF_H_ */
 ```
 
-Next we gonna create the LWIP configuration file, for that you can copy the contents from ST [lwipopts.h](https://github.com/joaomariolago/stm32h5-zenoh-lwip-demo/tree/master/firmware/Core/Inc/LWIP/Target/lwipopts.h) to our `firmware/Core/Inc/LWIP/Target/lwipopts.h` file.
+Next, we will create the LWIP configuration file. To do this, copy the contents from the ST-provided [lwipopts.h](https://github.com/joaomariolago/stm32h5-zenoh-lwip-demo/tree/master/firmware/Core/Inc/LWIP/Target/lwipopts.h) into our `firmware/Core/Inc/LWIP/Target/lwipopts.h` file.
 
-With this we should have the LWIP stack ready to use, next step is creating the basic application that will start the LWIP stack and configure the interface.
+With this, the LWIP stack should be ready to use. The next step is to create the basic application that will initialize the LWIP stack and configure the interface.
 
-Next we gonna make the base application that will start the LWIP stack and configure the interface. It should be able to fetch a dynamic IP for us when the link is up and allow our main taks to use the network stack.
+Now, we will implement the base application responsible for starting the LWIP stack and configuring the interface. It should be capable of obtaining a dynamic IP address when the link is up and allow our main task to use the network stack.
 
 For this copy the [ethernet.h](https://github.com/joaomariolago/stm32h5-zenoh-lwip-demo/tree/master/firmware/Core/Inc/LWIP/App/ethernet.h) to `firmware/Core/Inc/LWIP/App/ethernet.h` and [ethernet.c](https://github.com/joaomariolago/stm32h5-zenoh-lwip-demo/tree/master/firmware/Core/Src/LWIP/App/ethernet.c) to `firmware/Core/Src/LWIP/App/ethernet.c`.
 
@@ -683,9 +727,9 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 
 ### Make a simple DHCP IP acquisition
 
-After all the previous steps, we should have the LWIP stack ready to use, so we can make a simple application that will start the stack and configure the interface to acquire a dynamic IP. For this we gonna copy the [ethernet.h](https://github.com/joaomariolago/stm32h5-zenoh-lwip-demo/tree/master/firmware/Core/Inc/LWIP/App/ethernet.h) to `firmware/Core/Inc/LWIP/App/ethernet.h` and [ethernet.c](https://github.com/joaomariolago/stm32h5-zenoh-lwip-demo/tree/master/firmware/Core/Src/LWIP/App/ethernet.c) to `firmware/Core/Src/LWIP/App/ethernet.c`.
+After completing the previous steps, the LWIP stack should be ready to use. We can now create a simple application to start the stack and configure the interface to acquire a dynamic IP address. To do this, copy [ethernet.h](https://github.com/joaomariolago/stm32h5-zenoh-lwip-demo/tree/master/firmware/Core/Inc/LWIP/App/ethernet.h) to `firmware/Core/Inc/LWIP/App/ethernet.h` and [ethernet.c](https://github.com/joaomariolago/stm32h5-zenoh-lwip-demo/tree/master/firmware/Core/Src/LWIP/App/ethernet.c) to `firmware/Core/Src/LWIP/App/ethernet.c`.
 
-After that we can add the following code to the `firmware/Core/Src/app_freertos.c` file:
+Then, add the following code to the `firmware/Core/Src/app_freertos.c` file:
 
 ```diff
 /* Private includes ----------------------------------------------------------*/
@@ -766,6 +810,112 @@ void StartDefaultTask(void *argument)
 /* USER CODE END Application */
 ```
 
-After these additions we should have a simple application that will start the LWIP stack and configure the interface to acquire a dynamic IP. The leds should have a specific pattern, RED on means link is down, RED off means link up but interface not ready, YELLOW blinking means DHCP process is running and GREEN on means interface is ready to use.
+After these additions, we should have a simple application that starts the LWIP stack and configures the interface to acquire a dynamic IP address. The LEDs will indicate the network status with the following pattern: RED on means the link is down, RED off means the link is up but the interface is not ready, YELLOW blinking indicates the DHCP process is running, and GREEN on means the interface is ready to use.
+
+### Configure the Zenoh-Pico lib
+
+Continuing on the modification on the `firmware/CMakeLists.txt` file, make the following changes:
+
+```diff
+target_sources(lan8742 INTERFACE
+    "${CMAKE_CURRENT_SOURCE_DIR}/Lib/stm32-lan8742/lan8742.c"
+)
+
++ #   - Building for FreeRTOS and LWIP
++ set(WITH_FREERTOS_PLUS_LWIP "ON" CACHE BOOL "" FORCE)
+
++ #   - We want the static library
++ set(PACKAGING "OFF" CACHE BOOL "" FORCE)
++ set(BUILD_SHARED_LIBS "OFF" CACHE BOOL "" FORCE)
+
++ #   - No threads
++ set(CHECK_THREADS 0 FORCE)
++ set(THREADS_PREFER_PTHREAD_FLAG "OFF" CACHE BOOL "" FORCE)
+
++ #   - No tests
++ set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
++ set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+
++ #   - Not supported right now
++ set(Z_FEATURE_LINK_UDP_MULTICAST 0 CACHE BOOL "" FORCE)
++ set(Z_FEATURE_MULTI_THREAD 0 CACHE BOOL "" FORCE)
+
++ set(ZENOH_PICO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Lib/zenoh-pico")
++ add_subdirectory("${ZENOH_PICO_DIR}")
+
++ # Configure the Zenoh Pico project
++ include("${ZENOH_PICO_DIR}/cmake/helpers.cmake")
++ configure_include_project(ZENOHPICO zenohpico zenohpico::lib "../.." zenohpico "https://github.com/eclipse-zenoh/zenoh-pico" "")
+
++ # Edit the Zenoh Pico CMakeLists.txt to remove any set(CHECK_THREADS ON) line to set(CHECK_THREADS 0)
++ set(ZENOH_PICO_CMAKE "${ZENOH_PICO_DIR}/CMakeLists.txt")
++ file(READ "${ZENOH_PICO_CMAKE}" ZENOH_PICO_CMAKE_CONTENTS)
++ string(REPLACE "set(CHECK_THREADS \"ON\")" "set(CHECK_THREADS 0)" ZENOH_PICO_CMAKE_CONTENTS "${ZENOH_PICO_CMAKE_CONTENTS}")
++ file(WRITE "${ZENOH_PICO_CMAKE}" "${ZENOH_PICO_CMAKE_CONTENTS}")
++ message(STATUS "Patched Zenoh Pico: Disabled CHECK_THREADS in CMakeLists.txt")
+
++ target_link_libraries(zenohpico_static
++   freertos_kernel
++   freertos_config
++   lwip-system
++   lwipcore
++ )
+
+# Link directories setup
+target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
+    # Add user defined library search paths
+)
+```
+
+The section where the CMake file from Zenoh is modified is due to a known issue in the current CMake configuration, which incorrectly forces the inclusion of pthreads when building the library. Since we are targeting a bare-metal platform, this must be disabled. This issue will likely be resolved in an upcoming pull request.
+
+Additionally, we need to add a compile definition to the base `stm32cubemx` target:
+
+```diff
+# Add STM32CubeMX generated sources
+add_subdirectory(cmake/stm32cubemx)
+
++ # Definitions for base project
++ target_compile_definitions(stm32cubemx INTERFACE
++     ZENOH_FREERTOS_PLUS_LWIP
++ )
+
+add_library(freertos_config INTERFACE)
+target_include_directories(freertos_config SYSTEM INTERFACE
+  "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc"
+)
+```
+
+And finally add zenoh to the main project itself:
+
+```diff
+# Add include paths
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+    # Add user defined include paths
+
+    ${LWIP_SPECIFIC_INCLUDE_DIRS}
+    ${LAN8742_SPECIFIC_INCLUDE_DIRS}
++    "${ZENOH_PICO_DIR}/include"
+)
+```
+
+```diff
+# Add linked libraries
+target_link_libraries(${CMAKE_PROJECT_NAME}
+    stm32cubemx
+
+    # Add user defined libraries
+    lan8742
+    lwip-system
+    lwipcore
++    zenohpico_static
+)
+```
+
+### Declare a simple pub/sub example
+
+After completing the configuration, we can use any of the examples from the `zenoh-pico` repository.
 
 ## How to flash and debug
+
+Coming soon... (STMCubeProgrammer, STM32CubeIDE, OpenOCD, stflash)
