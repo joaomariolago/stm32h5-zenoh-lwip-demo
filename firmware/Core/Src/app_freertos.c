@@ -44,7 +44,7 @@
 #define ZENOH_LOCATOR "tcp/192.168.2.2:7447"
 
 #define ZENOH_TOPIC_PING_KEYEXPR "demo/example/topic/1"
-#define ZENOH_TOPIC_PONG_KEYEXPR "mavlink/1/1/HEARTBEAT"
+#define ZENOH_TOPIC_PONG_KEYEXPR "mavlink/1/1/SERVO_OUTPUT_RAW"
 
 #define ZENOH_N_MESSAGES 1000000
 #define ZENOH_MESSAGE_SIZE 2
@@ -85,6 +85,7 @@ const osThreadAttr_t defaultTask_attributes = {
 
 void dead_end(void);
 void app_task(void */**argument */);
+void stats_task(void *argument);
 void data_handler(z_loaned_sample_t *sample, void *ctx);
 
 /* USER CODE END FunctionPrototypes */
@@ -252,13 +253,16 @@ void data_handler(z_loaned_sample_t *sample, void *ctx) {
   HAL_GPIO_WritePin(ZENOH_FREQ_PIN_GPIO_Port, ZENOH_FREQ_PIN_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(LED_YELLOW_GPIO_Port, LED_YELLOW_Pin, GPIO_PIN_SET);
 
-  printf("Received data: \n");
-
-  // z_owned_bytes_t payload;
-  // z_bytes_from_str(&payload, zenoh_buffer, NULL, NULL);
-  //z_publisher_put(z_loan(pub), z_move(payload), NULL);
+  /** Print message as string */
+  z_view_string_t keystr;
+  z_keyexpr_as_view_string(z_sample_keyexpr(sample), &keystr);
+  z_owned_string_t value;
+  z_bytes_to_string(z_sample_payload(sample), &value);
+  printf(">> %.*s\n", (int)z_string_len(z_loan(value)), z_string_data(z_loan(value)));
+  z_drop(z_move(value));
 
   HAL_GPIO_WritePin(ZENOH_FREQ_PIN_GPIO_Port, ZENOH_FREQ_PIN_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(LED_YELLOW_GPIO_Port, LED_YELLOW_Pin, GPIO_PIN_RESET);
 }
 /* USER CODE END Application */
+

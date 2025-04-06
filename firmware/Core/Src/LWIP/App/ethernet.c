@@ -1,14 +1,13 @@
 #include <stdio.h>
 
+#include "cmsis_os2.h"
 #include "FreeRTOS.h"
 #include "task.h"
-#include "cmsis_os2.h"
 
 #include "main.h"
 
 #include "lwip/opt.h"
 #include "lwip/netifapi.h"
-
 #if LWIP_DHCP
 #include "lwip/dhcp.h"
 #endif

@@ -107,7 +107,7 @@ target_sources(lan8742 INTERFACE
 # - Zenoh Pico
 
 #   - Building for FreeRTOS and LWIP
-set(WITH_FREERTOS_PLUS_LWIP "ON" CACHE BOOL "" FORCE)
+set(WITH_FREERTOS_LWIP "ON" CACHE BOOL "" FORCE)
 
 #   - We want the static library
 set(PACKAGING "OFF" CACHE BOOL "" FORCE)
