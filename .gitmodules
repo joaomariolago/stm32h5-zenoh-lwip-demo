@@ -6,4 +6,4 @@
 	url = git@github.com:STMicroelectronics/stm32-lan8742.git
 [submodule "firmware/Lib/zenoh-pico"]
 	path = firmware/Lib/zenoh-pico
-	url = git@github.com:eclipse-zenoh/zenoh-pico.git
+	url = https://github.com/joaomariolago/zenoh-pico.git
