@@ -63,8 +63,12 @@ void Error_Handler(void);
 #define LED_YELLOW_GPIO_Port GPIOF
 #define ZENOH_FREQ_PIN_Pin GPIO_PIN_0
 #define ZENOH_FREQ_PIN_GPIO_Port GPIOA
+#define SERVO_CONTROL_1_Pin GPIO_PIN_3
+#define SERVO_CONTROL_1_GPIO_Port GPIOA
 #define LED_GREEN_Pin GPIO_PIN_0
 #define LED_GREEN_GPIO_Port GPIOB
+#define SERVO_CONTROL_2_Pin GPIO_PIN_10
+#define SERVO_CONTROL_2_GPIO_Port GPIOB
 #define LED_RED_Pin GPIO_PIN_4
 #define LED_RED_GPIO_Port GPIOG
 

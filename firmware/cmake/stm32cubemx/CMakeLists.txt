@@ -31,6 +31,7 @@ target_sources(stm32cubemx INTERFACE
     ../../Core/Src/eth.c
     ../../Core/Src/icache.c
     ../../Core/Src/memorymap.c
+    ../../Core/Src/tim.c
     ../../Core/Src/usart.c
     ../../Core/Src/stm32h5xx_it.c
     ../../Core/Src/stm32h5xx_hal_msp.c
