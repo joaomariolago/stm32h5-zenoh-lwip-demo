@@ -28,6 +28,7 @@
 #include "jsmn.h"
 #include "zenoh-pico.h"
 
+#include "lwip/stats.h"
 #include "lwip/tcpip.h"
 #include "LWIP/App/ethernet.h"
 
@@ -69,6 +70,13 @@ const osThreadAttr_t app_task_attributes = {
   .stack_size = configMINIMAL_STACK_SIZE
 };
 
+osThreadId_t h_stats_task;
+const osThreadAttr_t stats_task_attributes = {
+  .name = "stats_task",
+  .priority = (osPriority_t) osPriorityNormal,
+  .stack_size = configMINIMAL_STACK_SIZE
+};
+
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
@@ -92,6 +100,13 @@ void dead_end(void);
  * @param argument Not used
  */
 void app_task(void */**argument */);
+
+/**
+ * @brief Report current OS stats to the console.
+ *
+ * @param argument Not used
+ */
+void stats_task(void */**argument */);
 
 /**
  * @brief Callback for when a message is received on topic SERVO_OUT_RAW
@@ -120,6 +135,21 @@ void get_motors_pulse_width(const char *message, uint16_t message_len, uint16_t 
 void __attribute__((optimize("O0"))) set_motors_pwm(uint16_t m1, uint16_t m2);
 
 /* USER CODE END FunctionPrototypes */
+
+/* USER CODE BEGIN 1 */
+/* Functions needed when configGENERATE_RUN_TIME_STATS is on */
+__weak void configureTimerForRunTimeStats(void)
+{
+  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+  DWT->CYCCNT = 0;
+  DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+}
+
+__weak unsigned long getRunTimeCounterValue(void)
+{
+  return DWT->CYCCNT;
+}
+/* USER CODE END 1 */
 
 /**
   * @brief  FreeRTOS initialization
@@ -185,6 +215,7 @@ void StartDefaultTask(void *argument)
   net_if_config();
 
   h_app_task = osThreadNew(app_task, NULL, &app_task_attributes);
+  h_stats_task = osThreadNew(stats_task, NULL, &stats_task_attributes);
 
   /* Delete the Init Thread */
   osThreadTerminate(defaultTaskHandle);
@@ -262,6 +293,30 @@ void app_task(void */**argument */)
   z_drop(z_move(s));
 
   dead_end();
+}
+
+/**
+ * @brief Report current OS stats to the console.
+ *
+ * @param argument Not used
+ */
+void stats_task(void */**argument */)
+{
+  #define STATS_CHAR_BUFFER_SIZE 1024
+  static char buffer[STATS_CHAR_BUFFER_SIZE];
+
+  while (1)
+  {
+    /** RTOS statistics */
+    printf("========================\n");
+    vTaskGetRunTimeStats(buffer);
+    printf("%s\n\n", buffer);
+
+    /** LWIP Statistics */
+    stats_display();
+
+    osDelay(1000);
+  }
 }
 
 /**

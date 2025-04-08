@@ -68,36 +68,11 @@ a lot of data that needs to be copied, this should be set high. */
    segments. */
 #define MEMP_NUM_TCP_SEG 64
 
-/** Extra */
-#define MEMP_NUM_ARP_QUEUE 20
-
-#define LWIP_ARP 1
-#define LWIP_ETHERNET 1
-#define LWIP_RAW 1
-#define LWIP_IPV4 1
-#define LWIP_IGMP 1
-
-#define MEM_STATS 0
-#define SYS_STATS 0
-#define MEMP_STATS 0
-#define LINK_STATS 0
-
-#define LWIP_TCP_KEEPALIVE 1
-#define LWIP_NETIF_TX_SINGLE_PBUF 1
-#define DHCP_DOES_ARP_CHECK 0
-#define LWIP_DHCP_DOES_ACD_CHECK 0
-#define LWIP_SOCKET_POLL 0
-#define LWIP_MULTICAST_TX_OPTIONS 1
-
-#define TCP_LISTEN_BACKLOG 1
-#define DEFAULT_RAW_RECVMBOX_SIZE 16
-#define DEFAULT_UDP_RECVMBOX_SIZE 16
-#define DEFAULT_TCP_RECVMBOX_SIZE 16
-#define DEFAULT_ACCEPTMBOX_SIZE 16
-#define TCPIP_MBOX_SIZE 16
-#define LWIP_TIMEVAL_PRIVATE 0
-
-#define LWIP_SO_LINGER 1
+/* ---------- Core options ---------- */
+#define LWIP_ETHERNET                1
+#define LWIP_RAW                     1
+#define LWIP_IPV4                    1
+#define LWIP_IGMP                    1
 
 /* ---------- Pbuf options ---------- */
 
@@ -106,7 +81,14 @@ a lot of data that needs to be copied, this should be set high. */
 
 /* LWIP_SUPPORT_CUSTOM_PBUF == 1: to pass directly MAC Rx buffers to the stack
    no copy is needed */
-#define LWIP_SUPPORT_CUSTOM_PBUF 1
+   #define LWIP_SUPPORT_CUSTOM_PBUF 1
+
+/* ---------- Buffers Sizes ---------- */
+#define DEFAULT_RAW_RECVMBOX_SIZE    16
+#define DEFAULT_UDP_RECVMBOX_SIZE    16
+#define DEFAULT_TCP_RECVMBOX_SIZE    16
+#define DEFAULT_ACCEPTMBOX_SIZE      16
+#define TCPIP_MBOX_SIZE              16
 
 /*
    ------------------------------------------------
@@ -118,6 +100,12 @@ a lot of data that needs to be copied, this should be set high. */
 #define LWIP_NETIF_HOSTNAME 1
 
 /* ---------- TCP options ---------- */
+#define LWIP_TCP_KEEPALIVE           1
+#define TCP_LISTEN_BACKLOG           1
+#define LWIP_NETIF_TX_SINGLE_PBUF    1
+#define LWIP_MULTICAST_TX_OPTIONS    1
+#define LWIP_DHCP_DOES_ACD_CHECK     0
+
 #define LWIP_TCP 1
 #define TCP_TTL 255
 
@@ -132,6 +120,16 @@ a lot of data that needs to be copied, this should be set high. */
 
 #define TCP_SND_QUEUELEN ((4 * (TCP_SND_BUF) + (TCP_MSS - 1)) / (TCP_MSS))
 
+/* ---------- Socket options ---------- */
+#define LWIP_SOCKET_POLL             0
+#define LWIP_SO_LINGER               1
+#define LWIP_TIMEVAL_PRIVATE         0
+
+/* ---------- ARP options ---------- */
+#define LWIP_ARP            1
+#define MEMP_NUM_ARP_QUEUE  20
+#define DHCP_DOES_ARP_CHECK 0
+
 /* ---------- ICMP options ---------- */
 #define LWIP_ICMP 1
 
@@ -143,7 +141,12 @@ a lot of data that needs to be copied, this should be set high. */
 #define UDP_TTL 255
 
 /* ---------- Statistics options ---------- */
-#define LWIP_STATS 0
+#define LWIP_STATS          0
+#define LWIP_STATS_DISPLAY  0
+#define MEM_STATS           0
+#define SYS_STATS           0
+#define MEMP_STATS          0
+#define LINK_STATS          0
 
 /*
    --------------------------------------
