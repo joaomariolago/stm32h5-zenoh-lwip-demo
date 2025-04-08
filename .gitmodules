@@ -7,3 +7,6 @@
 [submodule "firmware/Lib/zenoh-pico"]
 	path = firmware/Lib/zenoh-pico
 	url = https://github.com/joaomariolago/zenoh-pico.git
+[submodule "firmware/Lib/jsmn"]
+	path = firmware/Lib/jsmn
+	url = git@github.com:zserge/jsmn.git

@@ -47,6 +47,10 @@ target_compile_definitions(stm32cubemx INTERFACE
     ZENOH_FREERTOS_LWIP
 )
 
+target_include_directories(stm32cubemx INTERFACE
+    "${CMAKE_CURRENT_SOURCE_DIR}/Lib/jsmn"
+)
+
 add_library(freertos_config INTERFACE)
 target_include_directories(freertos_config SYSTEM INTERFACE
   "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc"

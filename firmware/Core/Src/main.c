@@ -27,6 +27,12 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+
+/**
+ * JSMN is a header only lib, so we include here to generate all implementations and all other places must define
+ * JSMN_HEADER prior to including it, so it only includes the header.
+ */
+#include "jsmn.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
