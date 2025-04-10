@@ -32,6 +32,7 @@
 #include "lwip/tcpip.h"
 #include "LWIP/App/ethernet.h"
 
+#include "iwdg.h"
 #include "tim.h"
 /* USER CODE END Includes */
 
@@ -44,11 +45,11 @@
 /* USER CODE BEGIN PD */
 
 /** Zenoh session */
-#define ZENOH_MODE "client"
+#define ZENOH_MODE ""
 #define ZENOH_LOCATOR "tcp/192.168.2.2:7447"
 
 /** Lets listen to SERVO messages to control the motor */
-#define TOPIC_SERVO_OUT_RAW "mavlink/1/1/SERVO_OUTPUT_RAW"
+#define TOPIC_SERVO_OUT_RAW "mavlink/3/1/SERVO_OUTPUT_RAW"
 
 /** We want to control the boat so motor 1 and 3 used */
 #define MOTOR_1_SERVO_INDEX 1
@@ -215,7 +216,7 @@ void StartDefaultTask(void *argument)
   net_if_config();
 
   h_app_task = osThreadNew(app_task, NULL, &app_task_attributes);
-  h_stats_task = osThreadNew(stats_task, NULL, &stats_task_attributes);
+  //h_stats_task = osThreadNew(stats_task, NULL, &stats_task_attributes);
 
   /* Delete the Init Thread */
   osThreadTerminate(defaultTaskHandle);
@@ -249,8 +250,12 @@ void app_task(void */**argument */)
   /** We want to have net ready before starting this task */
   osEventFlagsWait(h_net_ready_event, 0x01, osFlagsWaitAny, osWaitForever);
 
+  /** Wait a bit to let case a session is open it will reset */
+  printf("Network is ready, waiting 15 seconds so old sessions are cleared...\n");
+  osDelay(15000);
+
   /** Green LED for user, net is red! */
-  printf("Net is ready, gonna start Zenoh task...\n");
+  printf("Net is ready, gonna start Zenoh...\n");
   HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_SET);
 
   /** Zenoh configuration */
@@ -260,8 +265,9 @@ void app_task(void */**argument */)
   zp_config_insert(z_loan_mut(config), Z_CONFIG_CONNECT_KEY, ZENOH_LOCATOR);
 
   /** Open Zenoh session */
+  printf("Opening Zenoh session...\n");
   z_owned_session_t s;
-  while (z_open(&s, z_move(config), NULL) < 0)
+  for (uint32_t i = 0; (z_open(&s, z_move(config), NULL) < 0) && i < 10; ++i)
   {
     printf("Failed to open Zenoh session, retrying...\n");
     osDelay(1000);
@@ -274,7 +280,13 @@ void app_task(void */**argument */)
   z_view_keyexpr_t ke1;
   z_view_keyexpr_from_str_unchecked(&ke1, TOPIC_SERVO_OUT_RAW);
 
-  if (z_declare_subscriber(z_loan(s), &sub, z_loan(ke1), z_move(callback), NULL) < 0) {
+  printf("Creating subscriber for topic %s...\n", TOPIC_SERVO_OUT_RAW);
+  z_result_t sub_creation_res = z_declare_subscriber(z_loan(s), &sub, z_loan(ke1), z_move(callback), NULL);
+
+  /** Start monitor watch dog */
+  MX_IWDG_Init();
+
+  if (sub_creation_res < 0) {
     return dead_end();
   }
 
@@ -325,8 +337,14 @@ void stats_task(void */**argument */)
  * @param sample The sample received
  * @param ctx Not used
  */
-void sub_on_servo_out_raw_message(z_loaned_sample_t *sample, void */**ctx */) {
+void sub_on_servo_out_raw_message(z_loaned_sample_t *sample, void */**ctx */)
+{
+  /** Reset here since when no messages are arriving we want to reset the micro */
+  HAL_IWDG_Refresh(&hiwdg);
+
   /** Print message as string */
+  HAL_GPIO_TogglePin(ZENOH_FREQ_PIN_GPIO_Port, ZENOH_FREQ_PIN_Pin);
+
   z_view_string_t keystr;
   z_keyexpr_as_view_string(z_sample_keyexpr(sample), &keystr);
   z_owned_string_t value;
@@ -403,3 +421,4 @@ void set_motors_pwm(uint16_t m1, uint16_t m2)
   }
 }
 /* USER CODE END Application */
+
