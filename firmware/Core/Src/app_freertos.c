@@ -283,9 +283,6 @@ void app_task(void */**argument */)
   printf("Creating subscriber for topic %s...\n", TOPIC_SERVO_OUT_RAW);
   z_result_t sub_creation_res = z_declare_subscriber(z_loan(s), &sub, z_loan(ke1), z_move(callback), NULL);
 
-  /** Start monitor watch dog */
-  MX_IWDG_Init();
-
   if (sub_creation_res < 0) {
     return dead_end();
   }
@@ -339,9 +336,6 @@ void stats_task(void */**argument */)
  */
 void sub_on_servo_out_raw_message(z_loaned_sample_t *sample, void */**ctx */)
 {
-  /** Reset here since when no messages are arriving we want to reset the micro */
-  HAL_IWDG_Refresh(&hiwdg);
-
   /** Print message as string */
   HAL_GPIO_TogglePin(ZENOH_FREQ_PIN_GPIO_Port, ZENOH_FREQ_PIN_Pin);
 

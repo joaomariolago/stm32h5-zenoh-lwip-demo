@@ -20,7 +20,6 @@
 #include "main.h"
 #include "cmsis_os2.h"
 #include "icache.h"
-#include "iwdg.h"
 #include "memorymap.h"
 #include "tim.h"
 #include "usart.h"
@@ -101,7 +100,6 @@ int main(void)
   MX_ICACHE_Init();
   MX_USART3_UART_Init();
   MX_TIM2_Init();
-  // MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
