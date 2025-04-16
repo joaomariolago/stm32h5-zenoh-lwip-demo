@@ -39,7 +39,7 @@
 /* Time to block waiting for transmissions to finish */
 #define ETHIF_TX_TIMEOUT                       (2000U)
 /* Stack size of the interface thread */
-#define INTERFACE_THREAD_STACK_SIZE            ( 1024 )
+#define INTERFACE_THREAD_STACK_SIZE            (2048)
 
 /* Network interface name */
 #define IFNAME0 's'
@@ -47,9 +47,9 @@
 
 #define ETH_DMA_TRANSMIT_TIMEOUT                (20U)
 
-#define ETH_RX_BUFFER_SIZE            1000U
-#define ETH_RX_BUFFER_CNT             12U
-#define ETH_TX_BUFFER_MAX             ((ETH_TX_DESC_CNT) * 2U)
+#define ETH_RX_BUFFER_SIZE            2000U
+#define ETH_RX_BUFFER_CNT             ((ETH_RX_DESC_CNT) * 8)
+#define ETH_TX_BUFFER_MAX             ((ETH_TX_DESC_CNT) * 4)
 
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
@@ -93,7 +93,7 @@ LWIP_MEMPOOL_DECLARE(RX_POOL, ETH_RX_BUFFER_CNT, sizeof(RxBuff_t), "Zero-copy RX
 osThreadId_t EthIfHandle;
 const osThreadAttr_t EthIf_attributes = {
   .name = "EthIf",
-  .priority = (osPriority_t) osPriorityRealtime,
+  .priority = (osPriority_t) osPriorityRealtime2,
   .stack_size = INTERFACE_THREAD_STACK_SIZE
 };
 

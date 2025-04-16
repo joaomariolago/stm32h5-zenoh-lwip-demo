@@ -34,6 +34,7 @@
 
 #include "iwdg.h"
 #include "tim.h"
+#include "stm32h5xx_ll_tim.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,11 +46,11 @@
 /* USER CODE BEGIN PD */
 
 /** Zenoh session */
-#define ZENOH_MODE ""
+#define ZENOH_MODE "client"
 #define ZENOH_LOCATOR "tcp/192.168.2.2:7447"
 
 /** Lets listen to SERVO messages to control the motor */
-#define TOPIC_SERVO_OUT_RAW "mavlink/3/1/SERVO_OUTPUT_RAW"
+#define TOPIC_SERVO_OUT_RAW "mavlink/1/1/SERVO_OUTPUT_RAW"
 
 /** We want to control the boat so motor 1 and 3 used */
 #define MOTOR_1_SERVO_INDEX 1
@@ -68,6 +69,13 @@ osThreadId_t h_app_task;
 const osThreadAttr_t app_task_attributes = {
   .name = "app_task",
   .priority = (osPriority_t) osPriorityNormal,
+  .stack_size = configMINIMAL_STACK_SIZE
+};
+
+osThreadId_t h_zenoh_loop_task;
+const osThreadAttr_t zenoh_loop_task_attributes = {
+  .name = "zenoh_loop",
+  .priority = (osPriority_t) osPriorityRealtime1,
   .stack_size = configMINIMAL_STACK_SIZE
 };
 
@@ -103,6 +111,13 @@ void dead_end(void);
 void app_task(void */**argument */);
 
 /**
+ * @brief Zenoh loop task to keep the session alive and read messages.
+ *
+ * @param argument Not used
+ */
+void zenoh_loop_task(void */**argument */);
+
+/**
  * @brief Report current OS stats to the console.
  *
  * @param argument Not used
@@ -125,7 +140,14 @@ void sub_on_servo_out_raw_message(z_loaned_sample_t *sample, void *ctx);
  * @param m1 Pointer to store motor 1 pulse width
  * @param m2 Pointer to store motor 2 pulse width
  */
-void get_motors_pulse_width(const char *message, uint16_t message_len, uint16_t *m1, uint16_t *m2);
+void get_motors_pulse_width(const char *message, uint16_t message_len, uint16_t *m1, uint16_t *m2, uint32_t *origin_time_us);
+
+/**
+ * @brief Update local jitter statistics.
+ *
+ * @param origin_time_us Time in us given from the mavlink message
+ */
+uint32_t update_jitter_statistics();
 
 /**
  * @brief Set the motors PWM values and avoid optimizing away the function.
@@ -251,8 +273,8 @@ void app_task(void */**argument */)
   osEventFlagsWait(h_net_ready_event, 0x01, osFlagsWaitAny, osWaitForever);
 
   /** Wait a bit to let case a session is open it will reset */
-  printf("Network is ready, waiting 15 seconds so old sessions are cleared...\n");
-  osDelay(15000);
+  printf("Network is ready, waiting 2 seconds so old sessions are cleared...\n");
+  osDelay(2000);
 
   /** Green LED for user, net is red! */
   printf("Net is ready, gonna start Zenoh...\n");
@@ -287,21 +309,39 @@ void app_task(void */**argument */)
     return dead_end();
   }
 
-  printf("Zenoh task started, ready to send and receive data...\n");
+  HAL_TIM_Base_Start_IT(&htim5);
+  printf("Subscriber created successfully! Creating zenog main loop task...\n");
 
-  while (1)
+  h_zenoh_loop_task = osThreadNew(zenoh_loop_task, (void*)&s, &zenoh_loop_task_attributes);
+
+  for (;;)
   {
-    zp_read(z_loan(s), NULL);
-    zp_send_keep_alive(z_loan(s), NULL);
+    /** We need to keep the watchdog alive */
+    osDelay(1000);
+    HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
   }
-
-  printf("Zenoh task finished, exiting...\n");
 
   z_drop(z_move(callback));
   z_drop(z_move(sub));
   z_drop(z_move(s));
 
   dead_end();
+}
+
+/**
+ * @brief Zenoh loop task to keep the session alive and read messages.
+ *
+ * @param argument Not used
+ */
+void zenoh_loop_task(void *argument)
+{
+  z_owned_session_t s = *(z_owned_session_t *)argument;
+
+  while (1)
+  {
+    zp_read(z_loan(s), NULL);
+    zp_send_keep_alive(z_loan(s), NULL);
+  }
 }
 
 /**
@@ -339,19 +379,24 @@ void sub_on_servo_out_raw_message(z_loaned_sample_t *sample, void */**ctx */)
   /** Print message as string */
   HAL_GPIO_TogglePin(ZENOH_FREQ_PIN_GPIO_Port, ZENOH_FREQ_PIN_Pin);
 
-  z_view_string_t keystr;
-  z_keyexpr_as_view_string(z_sample_keyexpr(sample), &keystr);
-  z_owned_string_t value;
-  z_bytes_to_string(z_sample_payload(sample), &value);
+  uint32_t jitter_variance_us = update_jitter_statistics();
+  printf("%lu\n", jitter_variance_us);
 
-  uint16_t m1 = 0, m2 = 0;
-  get_motors_pulse_width(z_string_data(z_loan(value)), (uint16_t)z_string_len(z_loan(value)), &m1, &m2);
+  // z_view_string_t keystr;
+  // z_keyexpr_as_view_string(z_sample_keyexpr(sample), &keystr);
+  // z_owned_string_t value;
+  // z_bytes_to_string(z_sample_payload(sample), &value);
 
-  set_motors_pwm(m1, m2);
+  // uint32_t origin_time_us = 0U;
+  // uint16_t m1 = 0U, m2 = 0U;
+  // get_motors_pulse_width(z_string_data(z_loan(value)), (uint16_t)z_string_len(z_loan(value)), &m1, &m2, &origin_time_us);
+
+  // set_motors_pwm(m1, m2);
+
 
   //printf("M1: %u, M2: %u\n", m1, m2);
 
-  z_drop(z_move(value));
+  //z_drop(z_move(value));
 }
 
 /**
@@ -362,7 +407,7 @@ void sub_on_servo_out_raw_message(z_loaned_sample_t *sample, void */**ctx */)
  * @param m1 Pointer to store motor 1 pulse width
  * @param m2 Pointer to store motor 2 pulse width
  */
-void get_motors_pulse_width(const char *message, uint16_t message_len, uint16_t *m1, uint16_t *m2)
+void get_motors_pulse_width(const char *message, uint16_t message_len, uint16_t *m1, uint16_t *m2, uint32_t *origin_time_us)
 {
   #define MAX_TOKENS 80
   static jsmn_parser parser;
@@ -381,6 +426,11 @@ void get_motors_pulse_width(const char *message, uint16_t message_len, uint16_t 
     if (tokens[i].type == JSMN_STRING) {
         int key_len = tokens[i].end - tokens[i].start;
         const char *key = message + tokens[i].start;
+
+        /** Get key time_usec */
+        if (key_len >= 9 && strncmp(key, "time_usec", key_len) == 0) {
+          sscanf(message + tokens[i + 1].start, "%lu", origin_time_us);
+        }
 
         // Check if key starts with "servo" and ends with "_raw"
         if (key_len >= 9 && strncmp(key, "servo", 5) == 0 && strncmp(key + key_len - 4, "_raw", 4) == 0) {
@@ -414,5 +464,41 @@ void set_motors_pwm(uint16_t m1, uint16_t m2)
     __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_4, m2);
   }
 }
-/* USER CODE END Application */
 
+/**
+ * @brief Update local jitter statistics.
+ *
+ * @param origin_time_us Time in us given from the mavlink message
+ */
+uint32_t update_jitter_statistics()
+{
+
+  #define MSG_PERIOD_US 20000U
+
+  uint32_t local_time_us = LL_TIM_GetCounter(TIM5);
+  uint32_t local_jitter = (local_time_us > MSG_PERIOD_US ? local_time_us - MSG_PERIOD_US : MSG_PERIOD_US - local_time_us);
+  LL_TIM_SetCounter(TIM5, 0);
+
+  #define JITTER_MAX_SAMPLES 256
+  static uint16_t jitter_buffer_index = 0U;
+  static uint32_t jitter_buffer[JITTER_MAX_SAMPLES]= {0};
+
+  jitter_buffer[jitter_buffer_index] = local_jitter;
+  jitter_buffer_index = (jitter_buffer_index + 1) % JITTER_MAX_SAMPLES;
+
+  uint32_t jitter_sum = 0U;
+  for (uint16_t i = 0U; i < JITTER_MAX_SAMPLES; i++) {
+    jitter_sum += jitter_buffer[i];
+  }
+  uint32_t jitter_avg = jitter_sum / JITTER_MAX_SAMPLES;
+
+  uint32_t jitter_squared_sum = 0U;
+  for (uint16_t i = 0U; i < JITTER_MAX_SAMPLES; i++) {
+    jitter_squared_sum += (jitter_buffer[i] - jitter_avg) * (jitter_buffer[i] - jitter_avg);
+  }
+  uint32_t jitter_squared_average = jitter_squared_sum / JITTER_MAX_SAMPLES;
+
+  return (uint32_t)jitter_squared_average;
+}
+
+/* USER CODE END Application */

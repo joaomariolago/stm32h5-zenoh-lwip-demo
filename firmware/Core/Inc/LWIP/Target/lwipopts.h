@@ -55,7 +55,7 @@
 
 /* MEM_SIZE: the size of the heap memory. If the application will send
 a lot of data that needs to be copied, this should be set high. */
-#define MEM_SIZE (14 * 1024)
+#define MEM_SIZE (128U * 1024U)
 
 /* Relocate the LwIP RAM heap pointer */
 #define LWIP_RAM_HEAP_POINTER (0x20084000)
@@ -66,7 +66,7 @@ a lot of data that needs to be copied, this should be set high. */
 
 /* MEMP_NUM_TCP_SEG: the number of simultaneously queued TCP
    segments. */
-#define MEMP_NUM_TCP_SEG 64
+#define MEMP_NUM_TCP_SEG 128
 
 /* ---------- Core options ---------- */
 #define LWIP_ETHERNET                1
@@ -77,18 +77,18 @@ a lot of data that needs to be copied, this should be set high. */
 /* ---------- Pbuf options ---------- */
 
 /* PBUF_POOL_BUFSIZE: the size of each pbuf in the pbuf pool */
-#define PBUF_POOL_SIZE 24
+#define PBUF_POOL_SIZE 128
 
 /* LWIP_SUPPORT_CUSTOM_PBUF == 1: to pass directly MAC Rx buffers to the stack
    no copy is needed */
    #define LWIP_SUPPORT_CUSTOM_PBUF 1
 
 /* ---------- Buffers Sizes ---------- */
-#define DEFAULT_RAW_RECVMBOX_SIZE    16
-#define DEFAULT_UDP_RECVMBOX_SIZE    16
-#define DEFAULT_TCP_RECVMBOX_SIZE    16
-#define DEFAULT_ACCEPTMBOX_SIZE      16
-#define TCPIP_MBOX_SIZE              16
+#define DEFAULT_RAW_RECVMBOX_SIZE    64
+#define DEFAULT_UDP_RECVMBOX_SIZE    64
+#define DEFAULT_TCP_RECVMBOX_SIZE    64
+#define DEFAULT_ACCEPTMBOX_SIZE      64
+#define TCPIP_MBOX_SIZE              64
 
 /*
    ------------------------------------------------
