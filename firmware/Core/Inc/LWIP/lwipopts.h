@@ -55,7 +55,7 @@
 
 /* MEM_SIZE: the size of the heap memory. If the application will send
 a lot of data that needs to be copied, this should be set high. */
-#define MEM_SIZE (128U * 1024U)
+#define MEM_SIZE (80 * 1024U)
 
 /* Relocate the LwIP RAM heap pointer */
 #define LWIP_RAM_HEAP_POINTER (0x20084000)

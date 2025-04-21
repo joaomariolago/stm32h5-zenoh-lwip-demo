@@ -70,7 +70,7 @@ get_target_property(CUBE_MX_PROVIDED_INCLUDE_DIRS stm32cubemx INTERFACE_INCLUDE_
 set(LWIP_SPECIFIC_INCLUDE_DIRS
     "${CMAKE_CURRENT_SOURCE_DIR}/Lib/stm32-mw-lwip/src/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/Lib/stm32-mw-lwip/system"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/LWIP/Target"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/LWIP"
 )
 
 set(LWIP_INCLUDE_DIRS
@@ -126,7 +126,7 @@ set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 #   - Not supported right now
-set(Z_FEATURE_LINK_UDP_MULTICAST 0 CACHE BOOL "" FORCE)
+set(Z_FEATURE_LINK_UDP_MULTICAST 1 CACHE BOOL "" FORCE)
 set(Z_FEATURE_MULTI_THREAD 0 CACHE BOOL "" FORCE)
 
 set(ZENOH_PICO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Lib/zenoh-pico")
@@ -159,9 +159,14 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
-    # Add user sources here
-    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/LWIP/App/ethernet.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/LWIP/Target/ethernetif.c"
+    # ETH link files
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/LWIP/Target/interface.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/LWIP/Target/phy.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/LWIP/Target/link.c"
+
+    # Network
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/LWIP/App/net.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/LWIP/App/DHCP/dhcp.c"
 )
 
 # Add include paths

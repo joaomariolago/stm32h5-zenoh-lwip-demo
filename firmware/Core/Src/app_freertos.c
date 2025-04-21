@@ -29,8 +29,7 @@
 #include "zenoh-pico.h"
 
 #include "lwip/stats.h"
-#include "lwip/tcpip.h"
-#include "LWIP/App/ethernet.h"
+#include "LWIP/App/net.h"
 
 #include "iwdg.h"
 #include "tim.h"
@@ -75,7 +74,14 @@ const osThreadAttr_t app_task_attributes = {
 osThreadId_t h_zenoh_loop_task;
 const osThreadAttr_t zenoh_loop_task_attributes = {
   .name = "zenoh_loop",
-  .priority = (osPriority_t) osPriorityRealtime1,
+  .priority = (osPriority_t) osPriorityRealtime,
+  .stack_size = configMINIMAL_STACK_SIZE
+};
+
+osThreadId_t h_zenoh_keep_alive_task;
+const osThreadAttr_t h_zenoh_keep_alive_task_attributes = {
+  .name = "zenoh_kp_al",
+  .priority = (osPriority_t) osPriorityNormal,
   .stack_size = configMINIMAL_STACK_SIZE
 };
 
@@ -116,6 +122,13 @@ void app_task(void */**argument */);
  * @param argument Not used
  */
 void zenoh_loop_task(void */**argument */);
+
+/**
+ * @brief Zenoh keep alive is a task that sends keep alive messages to the zenoh session.
+ *
+ * @param argument Not used
+ */
+void zenoh_keep_alive_task(void *argument);
 
 /**
  * @brief Report current OS stats to the console.
@@ -231,11 +244,7 @@ void StartDefaultTask(void *argument)
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);
 
-  /* Initialize the LwIP stack */
-  tcpip_init(NULL, NULL);
-
-  /** Configures the interface and provides event to notify when ready */
-  net_if_config();
+  network_start();
 
   h_app_task = osThreadNew(app_task, NULL, &app_task_attributes);
   //h_stats_task = osThreadNew(stats_task, NULL, &stats_task_attributes);
@@ -313,6 +322,7 @@ void app_task(void */**argument */)
   printf("Subscriber created successfully! Creating zenog main loop task...\n");
 
   h_zenoh_loop_task = osThreadNew(zenoh_loop_task, (void*)&s, &zenoh_loop_task_attributes);
+  h_zenoh_loop_task = osThreadNew(zenoh_keep_alive_task, (void*)&s, &h_zenoh_keep_alive_task_attributes);
 
   for (;;)
   {
@@ -329,7 +339,7 @@ void app_task(void */**argument */)
 }
 
 /**
- * @brief Zenoh loop task to keep the session alive and read messages.
+ * @brief Zenoh task to read messages.
  *
  * @param argument Not used
  */
@@ -340,7 +350,22 @@ void zenoh_loop_task(void *argument)
   while (1)
   {
     zp_read(z_loan(s), NULL);
+  }
+}
+
+/**
+ * @brief Zenoh keep alive is a task that sends keep alive messages to the zenoh session.
+ *
+ * @param argument Not used
+ */
+void zenoh_keep_alive_task(void *argument)
+{
+  z_owned_session_t s = *(z_owned_session_t *)argument;
+
+  while (1)
+  {
     zp_send_keep_alive(z_loan(s), NULL);
+    osDelay(1000);
   }
 }
 
