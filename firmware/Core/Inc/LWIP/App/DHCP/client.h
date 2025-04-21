@@ -1,5 +1,5 @@
-#ifndef _LWIP_APP_DHCP_DHCP_H_
-#define _LWIP_APP_DHCP_DHCP_H_
+#ifndef _LWIP_APP_DHCP_CLIENT_H_
+#define _LWIP_APP_DHCP_CLIENT_H_
 
 /* DHCP process states */
 #define DHCP_OFF              (uint8_t) 0
@@ -19,4 +19,4 @@ void stop_dhcp(void);
 
 void dhcp_task(void *argument);
 
-#endif /* _LWIP_APP_DHCP_DHCP_H_ */
+#endif /* _LWIP_APP_DHCP_CLIENT_H_ */

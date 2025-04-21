@@ -12,7 +12,8 @@
 #include "LWIP/App/net.h"
 #include "LWIP/Target/link.h"
 #include "LWIP/Target/interface.h"
-#include "LWIP/App/DHCP/dhcp.h"
+#include "LWIP/App/DHCP/client.h"
+#include "LWIP/App/FTP/server.h"
 
 /** Handlers */
 struct netif netif;
@@ -76,6 +77,7 @@ void net_if_config(void)
   h_dhcp_task = osThreadNew(dhcp_task, &netif, &dhcp_task_attributes);
 
   /** FTP */
+  ftpd_server_init();
 }
 
 void network_start(void)

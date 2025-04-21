@@ -5,7 +5,7 @@
 #include "lwip/dhcp.h"
 #include "lwip/netifapi.h"
 
-#include "LWIP/App/DHCP/dhcp.h"
+#include "LWIP/App/DHCP/client.h"
 #include "LWIP/Target/ifconfig.h"
 
 /** Reference to network IP ready flag */

@@ -166,7 +166,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 
     # Network
     "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/LWIP/App/net.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/LWIP/App/DHCP/dhcp.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/LWIP/App/DHCP/client.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/LWIP/App/FTP/server.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/LWIP/App/FTP/utils.c"
 )
 
 # Add include paths
