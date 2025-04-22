@@ -31,7 +31,6 @@
 #include "lwip/stats.h"
 #include "LWIP/App/net.h"
 
-#include "iwdg.h"
 #include "tim.h"
 #include "stm32h5xx_ll_tim.h"
 /* USER CODE END Includes */

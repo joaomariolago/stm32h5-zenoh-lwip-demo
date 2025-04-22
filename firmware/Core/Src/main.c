@@ -33,6 +33,8 @@
  * JSMN_HEADER prior to including it, so it only includes the header.
  */
 #include "jsmn.h"
+
+#include "LWIP/App/FTP/flash.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/

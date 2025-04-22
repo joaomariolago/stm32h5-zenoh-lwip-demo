@@ -162,6 +162,7 @@ void swap_flash_banks()
     Error_Handler();
   }
 
+
   flash_close();
 }
 

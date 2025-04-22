@@ -30,7 +30,6 @@ target_sources(stm32cubemx INTERFACE
     ../../Core/Src/app_freertos.c
     ../../Core/Src/eth.c
     ../../Core/Src/icache.c
-    ../../Core/Src/iwdg.c
     ../../Core/Src/memorymap.c
     ../../Core/Src/tim.c
     ../../Core/Src/usart.c
@@ -54,7 +53,6 @@ target_sources(stm32cubemx INTERFACE
     ../../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_eth.c
     ../../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_eth_ex.c
     ../../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_icache.c
-    ../../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_iwdg.c
     ../../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_uart.c
     ../../Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_uart_ex.c
     ../../Core/Src/system_stm32h5xx.c

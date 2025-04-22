@@ -80,27 +80,20 @@ static void ftpd_server_program_flash(struct netconn *data_connection)
 
   /** Locks flash again */
   flash_close();
+
+  swap_flash_banks();
 }
 
 static void ftpd_server_read_flash(struct netconn *data_connection, uint8_t is_running_firmware)
 {
-  printf("Sending flash...\n");
-
-  if (HAL_ICACHE_Disable() != HAL_OK)
-  {
-    Error_Handler();
-  }
-
   uint8_t *flash_address = NULL;
   uint32_t file_length = FLASH_BANK_SIZE;
   if (is_running_firmware)
   {
-    printf("Sending running firmware...\n");
     flash_address = (uint8_t *)FLASH_BANK_1_START_ADDR;
   }
   else
   {
-    printf("Sending slot firmware...\n");
     flash_address = (uint8_t *)FLASH_BANK_2_START_ADDR;
   }
 
@@ -109,9 +102,7 @@ static void ftpd_server_read_flash(struct netconn *data_connection, uint8_t is_r
 
   while (sent < file_length)
   {
-    printf("Sending %zu bytes...\n", sent);
     size_t send_len = (file_length - sent) > chunk ? chunk : (file_length - sent);
-    printf("Sending %zu bytes...\n", send_len);
     err_t err = netconn_write(data_connection, flash_address + sent, send_len, NETCONN_COPY);
     if (err != ERR_OK)
     {
@@ -119,13 +110,6 @@ static void ftpd_server_read_flash(struct netconn *data_connection, uint8_t is_r
     }
     sent += send_len;
   }
-
-  if (HAL_ICACHE_Enable() != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  printf("Sent %zu bytes\n", sent);
 }
 
 static void ftpd_server_name_list(struct netconn *data_connection)
@@ -297,8 +281,11 @@ static void ftpd_server_data_control(struct netconn *control_connection, uint8_t
     if (FTP_IS_REQUEST(FTP_RETR_REQUEST, request))
     {
       uint8_t is_slot_firm = strncmp((char *)&request[sizeof(FTP_RETR_REQUEST)], "/slot.bin", 9U) == 0;
+      (void)is_slot_firm;
       uint8_t is_running_firm = strncmp((char *)&request[sizeof(FTP_RETR_REQUEST)], "/running.bin", 12U) == 0;
-      if (is_slot_firm || is_running_firm)
+
+      /** TODO: Right now only reads from bank 1 works, await STM fix */
+      if (is_running_firm)
       {
         FTP_DATA_PORT_ENTER(control_connection, data_connection, data_channel_ip, data_channel_port);
         netconn_write(control_connection, FTP_STOR_OK_RESPONSE, STR_LEN(FTP_STOR_OK_RESPONSE), 0U);
