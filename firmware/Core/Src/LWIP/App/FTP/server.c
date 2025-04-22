@@ -81,7 +81,7 @@ static void ftpd_server_program_flash(struct netconn *data_connection)
   /** Locks flash again */
   flash_close();
 
-  swap_flash_banks();
+  // swap_flash_banks();
 }
 
 static void ftpd_server_read_flash(struct netconn *data_connection, uint8_t is_running_firmware)
