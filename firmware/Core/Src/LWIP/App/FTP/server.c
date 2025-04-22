@@ -9,6 +9,8 @@
 #include "task.h"
 #include "semphr.h"
 
+#include "main.h"
+
 #include <string.h>
 #include <stdio.h>
 
@@ -53,6 +55,7 @@ static void ftpd_server_get_data_port(uint8_t *request, ip4_addr_t *client_ip, u
 static void ftpd_server_list(struct netconn *data_connection);
 static void ftpd_server_name_list(struct netconn *data_connection);
 static void ftpd_server_program_flash(struct netconn *data_connection);
+static void ftpd_server_read_flash(struct netconn *data_connection, uint8_t is_running_firmware);
 
 /** Implementations ----------------------------------------------------------*/
 
@@ -68,19 +71,61 @@ static void ftpd_server_program_flash(struct netconn *data_connection)
     uint16_t len;
     netbuf_data(buf, &data, &len);
 
-    printf("Data: %.*s\n", len, (char *)data);
-
-    // Example: write data to flash
-    //flash_write_chunk(data, len);
+    /** Programs flash */
+    program_flash((uint8_t *)data, len);
 
     netbuf_delete(buf);
-    printf("Received %u bytes\n", len);
   }
-
-  printf("Completed programming flash\n");
+  program_flash_flush();
 
   /** Locks flash again */
   flash_close();
+}
+
+static void ftpd_server_read_flash(struct netconn *data_connection, uint8_t is_running_firmware)
+{
+  printf("Sending flash...\n");
+
+  if (HAL_ICACHE_Disable() != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  uint8_t *flash_address = NULL;
+  uint32_t file_length = FLASH_BANK_SIZE;
+  if (is_running_firmware)
+  {
+    printf("Sending running firmware...\n");
+    flash_address = (uint8_t *)FLASH_BANK_1_START_ADDR;
+  }
+  else
+  {
+    printf("Sending slot firmware...\n");
+    flash_address = (uint8_t *)FLASH_BANK_2_START_ADDR;
+  }
+
+  const size_t chunk = 512;
+  size_t sent = 0;
+
+  while (sent < file_length)
+  {
+    printf("Sending %zu bytes...\n", sent);
+    size_t send_len = (file_length - sent) > chunk ? chunk : (file_length - sent);
+    printf("Sending %zu bytes...\n", send_len);
+    err_t err = netconn_write(data_connection, flash_address + sent, send_len, NETCONN_COPY);
+    if (err != ERR_OK)
+    {
+      break;
+    }
+    sent += send_len;
+  }
+
+  if (HAL_ICACHE_Enable() != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  printf("Sent %zu bytes\n", sent);
 }
 
 static void ftpd_server_name_list(struct netconn *data_connection)
@@ -242,6 +287,23 @@ static void ftpd_server_data_control(struct netconn *control_connection, uint8_t
         netconn_write(control_connection, FTP_STOR_OK_RESPONSE, STR_LEN(FTP_STOR_OK_RESPONSE), 0U);
 
         ftpd_server_program_flash(data_connection);
+
+        FTP_DATA_PORT_LEAVE(control_connection, data_connection);
+      }
+
+      netconn_write(control_connection, FTP_WRITE_DENIED_RESPONSE, STR_LEN(FTP_WRITE_DENIED_RESPONSE), 0U);
+      continue;
+    }
+    if (FTP_IS_REQUEST(FTP_RETR_REQUEST, request))
+    {
+      uint8_t is_slot_firm = strncmp((char *)&request[sizeof(FTP_RETR_REQUEST)], "/slot.bin", 9U) == 0;
+      uint8_t is_running_firm = strncmp((char *)&request[sizeof(FTP_RETR_REQUEST)], "/running.bin", 12U) == 0;
+      if (is_slot_firm || is_running_firm)
+      {
+        FTP_DATA_PORT_ENTER(control_connection, data_connection, data_channel_ip, data_channel_port);
+        netconn_write(control_connection, FTP_STOR_OK_RESPONSE, STR_LEN(FTP_STOR_OK_RESPONSE), 0U);
+
+        ftpd_server_read_flash(data_connection, is_running_firm);
 
         FTP_DATA_PORT_LEAVE(control_connection, data_connection);
       }

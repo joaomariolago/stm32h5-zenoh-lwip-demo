@@ -328,6 +328,7 @@ void app_task(void */**argument */)
   {
     /** We need to keep the watchdog alive */
     osDelay(1000);
+    //HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
     HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
   }
 
