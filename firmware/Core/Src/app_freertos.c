@@ -289,40 +289,40 @@ void app_task(void */**argument */)
   printf("Net is ready, gonna start Zenoh...\n");
   HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_SET);
 
-  /** Zenoh configuration */
-  z_owned_config_t config;
-  z_config_default(&config);
-  zp_config_insert(z_loan_mut(config), Z_CONFIG_MODE_KEY, ZENOH_MODE);
-  zp_config_insert(z_loan_mut(config), Z_CONFIG_CONNECT_KEY, ZENOH_LOCATOR);
+  // /** Zenoh configuration */
+  // z_owned_config_t config;
+  // z_config_default(&config);
+  // zp_config_insert(z_loan_mut(config), Z_CONFIG_MODE_KEY, ZENOH_MODE);
+  // zp_config_insert(z_loan_mut(config), Z_CONFIG_CONNECT_KEY, ZENOH_LOCATOR);
 
-  /** Open Zenoh session */
-  printf("Opening Zenoh session...\n");
-  z_owned_session_t s;
-  for (uint32_t i = 0; (z_open(&s, z_move(config), NULL) < 0) && i < 10; ++i)
-  {
-    printf("Failed to open Zenoh session, retrying...\n");
-    osDelay(1000);
-  }
+  // /** Open Zenoh session */
+  // printf("Opening Zenoh session...\n");
+  // z_owned_session_t s;
+  // for (uint32_t i = 0; (z_open(&s, z_move(config), NULL) < 0) && i < 10; ++i)
+  // {
+  //   printf("Failed to open Zenoh session, retrying...\n");
+  //   osDelay(1000);
+  // }
 
-  /** Create a subscriber */
-  z_owned_subscriber_t sub;
-  z_owned_closure_sample_t callback;
-  z_closure(&callback, sub_on_servo_out_raw_message, NULL, NULL);
-  z_view_keyexpr_t ke1;
-  z_view_keyexpr_from_str_unchecked(&ke1, TOPIC_SERVO_OUT_RAW);
+  // /** Create a subscriber */
+  // z_owned_subscriber_t sub;
+  // z_owned_closure_sample_t callback;
+  // z_closure(&callback, sub_on_servo_out_raw_message, NULL, NULL);
+  // z_view_keyexpr_t ke1;
+  // z_view_keyexpr_from_str_unchecked(&ke1, TOPIC_SERVO_OUT_RAW);
 
-  printf("Creating subscriber for topic %s...\n", TOPIC_SERVO_OUT_RAW);
-  z_result_t sub_creation_res = z_declare_subscriber(z_loan(s), &sub, z_loan(ke1), z_move(callback), NULL);
+  // printf("Creating subscriber for topic %s...\n", TOPIC_SERVO_OUT_RAW);
+  // z_result_t sub_creation_res = z_declare_subscriber(z_loan(s), &sub, z_loan(ke1), z_move(callback), NULL);
 
-  if (sub_creation_res < 0) {
-    return dead_end();
-  }
+  // if (sub_creation_res < 0) {
+  //   return dead_end();
+  // }
 
-  HAL_TIM_Base_Start_IT(&htim5);
-  printf("Subscriber created successfully! Creating zenog main loop task...\n");
+  // HAL_TIM_Base_Start_IT(&htim5);
+  // printf("Subscriber created successfully! Creating zenog main loop task...\n");
 
-  h_zenoh_loop_task = osThreadNew(zenoh_loop_task, (void*)&s, &zenoh_loop_task_attributes);
-  h_zenoh_loop_task = osThreadNew(zenoh_keep_alive_task, (void*)&s, &h_zenoh_keep_alive_task_attributes);
+  // h_zenoh_loop_task = osThreadNew(zenoh_loop_task, (void*)&s, &zenoh_loop_task_attributes);
+  // h_zenoh_loop_task = osThreadNew(zenoh_keep_alive_task, (void*)&s, &h_zenoh_keep_alive_task_attributes);
 
   for (;;)
   {
@@ -331,9 +331,9 @@ void app_task(void */**argument */)
     HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
   }
 
-  z_drop(z_move(callback));
-  z_drop(z_move(sub));
-  z_drop(z_move(s));
+  // z_drop(z_move(callback));
+  // z_drop(z_move(sub));
+  // z_drop(z_move(s));
 
   dead_end();
 }

@@ -50,6 +50,8 @@ void dhcp_task(void *argument)
           {
             dhcp_state = DHCP_ADDRESS_ASSIGNED;
 
+            printf("DHCP assigned address: %s\n", ipaddr_ntoa(netif_ip4_addr(netif)));
+
             ip4_addr_set_u32(&ipaddr, netif_ip4_addr(netif)->addr);
             ip4addr_ntoa_r(&ipaddr, ip_str, sizeof(ip_str));
 
