@@ -45,7 +45,7 @@
 
 /** Zenoh session */
 #define ZENOH_MODE "client"
-#define ZENOH_LOCATOR "tcp/192.168.2.2:7447"
+#define ZENOH_LOCATOR "tcp/192.168.0.1:7447"
 
 /** Lets listen to SERVO messages to control the motor */
 #define TOPIC_SERVO_OUT_RAW "mavlink/1/1/SERVO_OUTPUT_RAW"
@@ -53,6 +53,13 @@
 /** We want to control the boat so motor 1 and 3 used */
 #define MOTOR_1_SERVO_INDEX 1
 #define MOTOR_2_SERVO_INDEX 3
+
+/** Ping pong */
+
+#define TOPIC_SEND "demo/pingpong/tx"
+#define TOPIC_RECEIVE "demo/pingpong/rx"
+
+#define ZENOH_DEMO_PAYLOAD_SIZE 10U
 
 /* USER CODE END PD */
 
@@ -90,6 +97,10 @@ const osThreadAttr_t stats_task_attributes = {
   .priority = (osPriority_t) osPriorityNormal,
   .stack_size = configMINIMAL_STACK_SIZE
 };
+
+z_owned_publisher_t pub;
+
+volatile char zenoh_buffer[ZENOH_DEMO_PAYLOAD_SIZE] = {0};
 
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
@@ -288,11 +299,19 @@ void app_task(void */**argument */)
   printf("Net is ready, gonna start Zenoh...\n");
   HAL_GPIO_WritePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin, GPIO_PIN_SET);
 
+  /** Fill with random Letters */
+  for (int idx = 0; idx < ZENOH_DEMO_PAYLOAD_SIZE; ++idx)
+  {
+    zenoh_buffer[idx] = 'A' + (idx % 26);
+  }
+  zenoh_buffer[ZENOH_DEMO_PAYLOAD_SIZE - 1] = '\0';
+
   /** Zenoh configuration */
   z_owned_config_t config;
   z_config_default(&config);
   zp_config_insert(z_loan_mut(config), Z_CONFIG_MODE_KEY, ZENOH_MODE);
   zp_config_insert(z_loan_mut(config), Z_CONFIG_CONNECT_KEY, ZENOH_LOCATOR);
+  //zp_config_insert(z_loan_mut(config), Z_CONFIG_LISTEN_KEY, ZENOH_LOCATOR);
 
   /** Open Zenoh session */
   printf("Opening Zenoh session...\n");
@@ -308,12 +327,22 @@ void app_task(void */**argument */)
   z_owned_closure_sample_t callback;
   z_closure(&callback, sub_on_servo_out_raw_message, NULL, NULL);
   z_view_keyexpr_t ke1;
-  z_view_keyexpr_from_str_unchecked(&ke1, TOPIC_SERVO_OUT_RAW);
+  z_view_keyexpr_from_str_unchecked(&ke1, TOPIC_RECEIVE);
 
-  printf("Creating subscriber for topic %s...\n", TOPIC_SERVO_OUT_RAW);
+  printf("Creating subscriber for topic %s...\n", TOPIC_RECEIVE);
   z_result_t sub_creation_res = z_declare_subscriber(z_loan(s), &sub, z_loan(ke1), z_move(callback), NULL);
 
   if (sub_creation_res < 0) {
+    return dead_end();
+  }
+
+  z_view_keyexpr_t ke;
+  z_view_keyexpr_from_str_unchecked(&ke, TOPIC_SEND);
+
+  printf("Creating publisher for topic %s...\n", TOPIC_SEND);
+  z_result_t pub_creation_res = z_declare_publisher(z_loan(s), &pub, z_loan(ke), NULL);
+
+  if (pub_creation_res < 0) {
     return dead_end();
   }
 
@@ -404,8 +433,20 @@ void sub_on_servo_out_raw_message(z_loaned_sample_t *sample, void */**ctx */)
   /** Print message as string */
   HAL_GPIO_TogglePin(ZENOH_FREQ_PIN_GPIO_Port, ZENOH_FREQ_PIN_Pin);
 
-  uint32_t jitter_variance_us = update_jitter_statistics();
-  printf("%lu\n", jitter_variance_us);
+  printf("Received message on topic %s\n", TOPIC_RECEIVE);
+
+  // Create payload
+  z_owned_bytes_t payload;
+  z_bytes_from_str(&payload, zenoh_buffer, NULL, NULL);
+
+  printf("Will send message on topic %s\n", TOPIC_SEND);
+
+  z_publisher_put(z_loan(pub), z_move(payload), NULL);
+
+  printf("Sent message on topic %s\n", TOPIC_SEND);
+
+  // uint32_t jitter_variance_us = update_jitter_statistics();
+  // printf("%lu\n", jitter_variance_us);
 
   // z_view_string_t keystr;
   // z_keyexpr_as_view_string(z_sample_keyexpr(sample), &keystr);
@@ -527,4 +568,3 @@ uint32_t update_jitter_statistics()
 }
 
 /* USER CODE END Application */
-

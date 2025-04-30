@@ -86,18 +86,18 @@ static void ftpd_server_program_flash(struct netconn *data_connection)
 
 static void ftpd_server_read_flash(struct netconn *data_connection, uint8_t is_running_firmware)
 {
-  uint8_t *flash_address = NULL;
+  volatile uint8_t *flash_address = NULL;
   uint32_t file_length = FLASH_BANK_SIZE;
   if (is_running_firmware)
   {
-    flash_address = (uint8_t *)FLASH_BANK_1_START_ADDR;
+    flash_address = (volatile uint8_t *)FLASH_BANK_1_START_ADDR;
   }
   else
   {
-    flash_address = (uint8_t *)FLASH_BANK_2_START_ADDR;
+    flash_address = (volatile uint8_t *)FLASH_BANK_2_START_ADDR + (1024U * 8U * 5U);
   }
 
-  const size_t chunk = 512;
+  const size_t chunk = 16U;
   size_t sent = 0;
 
   while (sent < file_length)
@@ -237,10 +237,6 @@ static void ftpd_server_data_control(struct netconn *control_connection, uint8_t
     if (FTP_IS_REQUEST(FTP_PORT_REQUEST, request))
     {
       ftpd_server_get_data_port(&request[sizeof(FTP_PORT_REQUEST)], &data_channel_ip, &data_channel_port);
-
-      printf("Channel IP: %s\n", ipaddr_ntoa(&data_channel_ip));
-      printf("Channel Port: %u\n", data_channel_port);
-
       netconn_write(control_connection, FTP_PORT_OK_RESPONSE, STR_LEN(FTP_PORT_OK_RESPONSE), 0U);
       continue;
     }
@@ -285,7 +281,7 @@ static void ftpd_server_data_control(struct netconn *control_connection, uint8_t
       uint8_t is_running_firm = strncmp((char *)&request[sizeof(FTP_RETR_REQUEST)], "/running.bin", 12U) == 0;
 
       /** TODO: Right now only reads from bank 1 works, await STM fix */
-      if (is_running_firm)
+      if (is_slot_firm || is_running_firm)
       {
         FTP_DATA_PORT_ENTER(control_connection, data_connection, data_channel_ip, data_channel_port);
         netconn_write(control_connection, FTP_STOR_OK_RESPONSE, STR_LEN(FTP_STOR_OK_RESPONSE), 0U);

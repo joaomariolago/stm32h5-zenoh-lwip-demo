@@ -77,7 +77,7 @@ void net_if_config(void)
   h_dhcp_task = osThreadNew(dhcp_task, &netif, &dhcp_task_attributes);
 
   /** FTP */
-  ftpd_server_init();
+  //ftpd_server_init();
 }
 
 void network_start(void)

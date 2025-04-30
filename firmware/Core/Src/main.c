@@ -19,6 +19,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os2.h"
+#include "flash.h"
+#include "gtzc.h"
 #include "icache.h"
 #include "memorymap.h"
 #include "tim.h"
@@ -92,6 +94,8 @@ int main(void)
 
   /* Configure the system clock */
   SystemClock_Config();
+  /* GTZC initialisation */
+  MX_GTZC_Init();
 
   /* USER CODE BEGIN SysInit */
 
@@ -103,6 +107,7 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM5_Init();
   MX_ICACHE_Init();
+  MX_FLASH_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
